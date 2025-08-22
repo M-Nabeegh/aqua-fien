@@ -443,11 +443,11 @@ export default function CustomersPage() {
                 <div className="mb-4 text-sm text-gray-600">
                   {filteredCustomers.length === 0 ? (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <span className="text-yellow-800">No customers found matching "{searchQuery}"</span>
+                      <span className="text-yellow-800">No customers found matching &ldquo;{searchQuery}&rdquo;</span>
                     </div>
                   ) : (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <span className="text-blue-800">Found {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''} matching "{searchQuery}"</span>
+                      <span className="text-blue-800">Found {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''} matching &ldquo;{searchQuery}&rdquo;</span>
                     </div>
                   )}
                 </div>

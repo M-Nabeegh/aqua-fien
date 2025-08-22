@@ -67,7 +67,7 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
   // Update form when initialData changes (for editing)
   useEffect(() => {
     if (initialData) {
-      const updatedForm = { ...form }
+      const updatedForm = {}
       Object.keys(initialData).forEach(key => {
         if (fields.includes(key) && initialData[key] !== null && initialData[key] !== undefined) {
           // Format dates properly
@@ -83,9 +83,9 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
           }
         }
       })
-      setForm(updatedForm)
+      setForm(prevForm => ({ ...prevForm, ...updatedForm }))
     }
-  }, [initialData])
+  }, [initialData, fields])
 
   const handleInputChange = (field, value) => {
     // Validation for numeric fields

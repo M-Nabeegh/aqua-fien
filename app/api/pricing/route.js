@@ -1,9 +1,11 @@
 import { query } from '../../../lib/db'
 
+export const dynamic = 'force-dynamic' // This ensures the route is always dynamically rendered
+
 // GET endpoint to fetch effective pricing for customer-product combinations
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = request.nextUrl
     const customerId = searchParams.get('customerId')
     const productId = searchParams.get('productId')
     

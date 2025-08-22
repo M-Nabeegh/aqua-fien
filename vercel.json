@@ -1,17 +1,9 @@
 {
-  "name": "aquafine-water-management",
   "version": 2,
   "builds": [
     {
       "src": "next.config.mjs",
       "use": "@vercel/next"
     }
-  ],
-  "env": {
-    "DB_HOST": "@db_host",
-    "DB_PORT": "@db_port", 
-    "DB_NAME": "@db_name",
-    "DB_USER": "@db_user",
-    "DB_PASSWORD": "@db_password"
-  }
+  ]
 }

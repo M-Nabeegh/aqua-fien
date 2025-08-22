@@ -1,12 +1,16 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Table from '../../components/Table'
+import SearchableCustomerSelect from '../../components/SearchableCustomerSelect'
 
 export default function CustomerLedgersPage() {
   const [customers, setCustomers] = useState([])
   const [advances, setAdvances] = useState([])
   const [sellOrders, setSellOrders] = useState([])
   const [selectedCustomer, setSelectedCustomer] = useState('')
+  const [selectedCustomerForInvoice, setSelectedCustomerForInvoice] = useState('')
+  const [selectedCustomerObj, setSelectedCustomerObj] = useState(null)
+  const [selectedCustomerObjForInvoice, setSelectedCustomerObjForInvoice] = useState(null)
   const [ledgerData, setLedgerData] = useState([])
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -18,7 +22,7 @@ export default function CustomerLedgersPage() {
     fetch('/api/sell-orders').then(r => r.json()).then(setSellOrders).catch(() => setSellOrders([]))
   }, [])
 
-  const calculateLedger = () => {
+  const calculateLedger = useCallback(() => {
     // Calculate ledger for each customer
     const ledger = customers.map(customer => {
       const customerAdvances = advances.filter(adv => adv.customerName === customer.name)
@@ -40,7 +44,7 @@ export default function CustomerLedgersPage() {
     })
 
     setLedgerData(ledger)
-  }
+  }, [customers, advances, sellOrders])
 
   const printSingleCustomerLedger = (customerName) => {
     const customer = customers.find(cust => cust.name === customerName)
@@ -143,14 +147,14 @@ export default function CustomerLedgersPage() {
   }
 
   const printBillInvoice = () => {
-    if (!selectedCustomer || !fromDate || !toDate) {
+    if (!selectedCustomerObjForInvoice || !fromDate || !toDate) {
       alert('Please select customer and date range')
       return
     }
 
-    const customer = customers.find(cust => cust.name === selectedCustomer)
+    const customer = customers.find(cust => cust.name === selectedCustomerObjForInvoice.name)
     const customerSales = sellOrders.filter(order => 
-      order.customerName === selectedCustomer &&
+      order.customerName === selectedCustomerObjForInvoice.name &&
       order.billDate >= fromDate &&
       order.billDate <= toDate
     )
@@ -168,7 +172,7 @@ export default function CustomerLedgersPage() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Bill Invoice - ${selectedCustomer}</title>
+          <title>Bill Invoice - ${selectedCustomerObjForInvoice.name}</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 20px; }
             .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
@@ -193,7 +197,7 @@ export default function CustomerLedgersPage() {
             <h2>📋 Invoice Details</h2>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
               <div>
-                <p><strong>Customer:</strong> ${selectedCustomer}</p>
+                <p><strong>Customer:</strong> ${selectedCustomerObjForInvoice.name}</p>
                 <p><strong>Phone:</strong> ${customer?.phone || 'N/A'}</p>
                 <p><strong>Address:</strong> ${customer?.address || 'N/A'}</p>
               </div>
@@ -260,7 +264,7 @@ export default function CustomerLedgersPage() {
 
   useEffect(() => {
     calculateLedger()
-  }, [customers, advances, sellOrders])
+  }, [calculateLedger])
 
   return (
     <div className="space-y-6">
@@ -275,22 +279,17 @@ export default function CustomerLedgersPage() {
           {/* Print Individual Ledger */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <h4 className="font-medium mb-3 text-green-700">📄 Print Customer Ledger</h4>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Customer
-            </label>
-            <select
-              value={selectedCustomer}
-              onChange={(e) => setSelectedCustomer(e.target.value)}
-              className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="">Choose customer to print ledger...</option>
-              {customers.map(customer => (
-                <option key={customer.id} value={customer.name}>
-                  {customer.name} ({customer.phone})
-                </option>
-              ))}
-            </select>
-            {selectedCustomer && (
+            <SearchableCustomerSelect
+              customers={customers}
+              selectedCustomer={selectedCustomerObj}
+              onCustomerSelect={(customer) => {
+                setSelectedCustomerObj(customer)
+                setSelectedCustomer(customer ? customer.name : '')
+              }}
+              placeholder="Search and select customer for ledger..."
+              label="Select Customer"
+            />
+            {selectedCustomerObj && (
               <button
                 onClick={() => printSingleCustomerLedger(selectedCustomer)}
                 className="mt-3 w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors duration-200 font-medium"
@@ -305,21 +304,16 @@ export default function CustomerLedgersPage() {
             <h4 className="font-medium mb-3 text-blue-700">🧾 Generate Bill Invoice</h4>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Customer for Invoice
-                </label>
-                <select
-                  value={selectedCustomer}
-                  onChange={(e) => setSelectedCustomer(e.target.value)}
-                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Choose customer for invoice...</option>
-                  {customers.map(customer => (
-                    <option key={customer.id} value={customer.name}>
-                      {customer.name} ({customer.phone})
-                    </option>
-                  ))}
-                </select>
+                <SearchableCustomerSelect
+                  customers={customers}
+                  selectedCustomer={selectedCustomerObjForInvoice}
+                  onCustomerSelect={(customer) => {
+                    setSelectedCustomerObjForInvoice(customer)
+                    setSelectedCustomer(customer ? customer.name : '')
+                  }}
+                  placeholder="Search and select customer for invoice..."
+                  label="Select Customer for Invoice"
+                />
               </div>
               
               <div>
@@ -348,10 +342,10 @@ export default function CustomerLedgersPage() {
                 </div>
               </div>
 
-              {selectedCustomer && fromDate && toDate && (
+              {selectedCustomerObjForInvoice && fromDate && toDate && (
                 <div className="bg-white p-3 rounded border border-blue-200">
                   <p className="text-sm text-gray-600 mb-2">
-                    📋 Invoice will include all bottles delivered to <strong>{selectedCustomer}</strong> from <strong>{fromDate}</strong> to <strong>{toDate}</strong>
+                    📋 Invoice will include all bottles delivered to <strong>{selectedCustomerObjForInvoice.name}</strong> from <strong>{fromDate}</strong> to <strong>{toDate}</strong>
                   </p>
                   <button
                     onClick={printBillInvoice}

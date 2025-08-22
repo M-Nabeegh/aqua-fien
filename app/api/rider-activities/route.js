@@ -4,7 +4,22 @@ import { query } from '../../../lib/db'
 // GET all rider activities
 export async function GET() {
   try {
-    const result = await query('SELECT * FROM v_rider_activities_api WHERE "isActive" = true ORDER BY "activityDate" DESC, "createdAt" DESC')
+    const result = await query(`
+      SELECT 
+        ra.id,
+        ra.activity_date as date,
+        ra.employee_id as "employeeId",
+        e.name as "salesmanRepresentative",
+        ra.empty_bottles_received as "emptyBottlesReceived",
+        ra.filled_bottles_sent as "filledBottlesSent", 
+        ra.filled_product_bought_back as "filledProductBoughtBack",
+        ra.notes,
+        ra.created_at as "createdAt"
+      FROM rider_activities ra
+      JOIN employees e ON ra.employee_id = e.id
+      WHERE ra.is_active = true 
+      ORDER BY ra.activity_date DESC, ra.created_at DESC
+    `)
     
     return NextResponse.json(result.rows)
   } catch (error) {

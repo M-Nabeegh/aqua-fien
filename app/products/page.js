@@ -64,8 +64,10 @@ export default function ProductsPage() {
       
       if (response.ok) {
         setProducts(prev => prev.map(product => 
-          product.id === id ? { ...product, ...productData } : product
+          product.id === id ? { ...product, ...productData
+           } : product  
         ))
+        alert('Product updated successfully!')
         setEditingProduct(null)
       }
     } catch (error) {
@@ -86,6 +88,7 @@ export default function ProductsPage() {
         if (response.ok) {
           console.log('Product deleted successfully, updating UI')
           setProducts(prev => prev.filter(product => product.id !== id))
+          
         } else {
           const errorData = await response.json()
           console.error('Delete failed:', errorData)

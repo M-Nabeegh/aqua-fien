@@ -9,9 +9,7 @@ export default function ReportsPage() {
   const [customerAdvances, setCustomerAdvances] = useState([])
   const [employeeAdvances, setEmployeeAdvances] = useState([])
   const [riderActivities, setRiderActivities] = useState([])
-  const [expenses, setExpenses] = useState([
-    { id: 1, category: 'Expenditures', amount: 28000, date: '2025-08-01', description: 'Total Expenses' }
-  ])
+  const [expenditures, setExpenditures] = useState([])
   const [loading, setLoading] = useState(true)
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -19,13 +17,14 @@ export default function ReportsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [customersRes, employeesRes, sellOrdersRes, customerAdvancesRes, employeeAdvancesRes, riderActivitiesRes] = await Promise.all([
+        const [customersRes, employeesRes, sellOrdersRes, customerAdvancesRes, employeeAdvancesRes, riderActivitiesRes, expendituresRes] = await Promise.all([
           fetch('/api/customers').then(r => r.json()).catch(() => []),
           fetch('/api/employees').then(r => r.json()).catch(() => []),
           fetch('/api/sell-orders').then(r => r.json()).catch(() => []),
           fetch('/api/customer-advances').then(r => r.json()).catch(() => []),
           fetch('/api/employee-advances').then(r => r.json()).catch(() => []),
-          fetch('/api/rider-activities').then(r => r.json()).catch(() => [])
+          fetch('/api/rider-activities').then(r => r.json()).catch(() => []),
+          fetch('/api/expenditures').then(r => r.json()).catch(() => [])
         ])
 
         setCustomers(customersRes)
@@ -34,6 +33,7 @@ export default function ReportsPage() {
         setCustomerAdvances(customerAdvancesRes)
         setEmployeeAdvances(employeeAdvancesRes)
         setRiderActivities(riderActivitiesRes)
+        setExpenditures(expendituresRes)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -47,28 +47,28 @@ export default function ReportsPage() {
   // Financial Calculations with date filtering
   const getFilteredData = () => {
     let filteredSellOrders = sellOrders
-    let filteredExpenses = expenses
+    let filteredExpenditures = expenditures
     let filteredRiderActivities = riderActivities
 
     if (fromDate && toDate) {
       filteredSellOrders = sellOrders.filter(order => 
         order.billDate >= fromDate && order.billDate <= toDate
       )
-      filteredExpenses = expenses.filter(expense =>
-        expense.date >= fromDate && expense.date <= toDate
+      filteredExpenditures = expenditures.filter(expenditure =>
+        expenditure.expenseDate >= fromDate && expenditure.expenseDate <= toDate
       )
       filteredRiderActivities = riderActivities.filter(activity =>
         activity.date >= fromDate && activity.date <= toDate
       )
     }
 
-    return { filteredSellOrders, filteredExpenses, filteredRiderActivities }
+    return { filteredSellOrders, filteredExpenditures, filteredRiderActivities }
   }
 
-  const { filteredSellOrders, filteredExpenses, filteredRiderActivities } = getFilteredData()
+  const { filteredSellOrders, filteredExpenditures, filteredRiderActivities } = getFilteredData()
   const totalRevenue = Array.isArray(filteredSellOrders) ? filteredSellOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount || 0), 0) : 0
   const totalEmployeeSalaries = Array.isArray(employees) ? employees.reduce((sum, emp) => sum + parseFloat(emp.salary || 0), 0) : 0
-  const totalExpenses = Array.isArray(filteredExpenses) ? filteredExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0) : 0
+  const totalExpenses = Array.isArray(filteredExpenditures) ? filteredExpenditures.reduce((sum, expenditure) => sum + parseFloat(expenditure.amount || 0), 0) : 0
   const totalCosts = totalEmployeeSalaries + totalExpenses
   const netProfit = totalRevenue - totalCosts
   const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
@@ -84,12 +84,9 @@ export default function ReportsPage() {
   riderStats.averageAccountability = riderStats.activitiesCount > 0 ? riderStats.totalAccountability / riderStats.activitiesCount : 0
   riderStats.efficiencyRate = riderStats.totalFilledSent > 0 ? (riderStats.totalAccountability / riderStats.totalFilledSent) * 100 : 0
 
-  const formatCurrency = (amount) => `PKR ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
-
-  const updateExpense = (id, newAmount) => {
-    setExpenses(prev => prev.map(expense => 
-      expense.id === id ? { ...expense, amount: parseFloat(newAmount) || 0 } : expense
-    ))
+  const formatCurrency = (amount) => {
+    const num = parseFloat(amount || 0)
+    return `PKR ${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
   }
 
   const printProfitLossReport = () => {
@@ -156,10 +153,10 @@ export default function ReportsPage() {
                   <td>Employee Salaries</td>
                   <td>${formatCurrency(totalEmployeeSalaries)}</td>
                 </tr>
-                ${filteredExpenses.map(expense => `
+                ${filteredExpenditures.map(expenditure => `
                   <tr>
-                    <td>${expense.description}</td>
-                    <td>${formatCurrency(expense.amount)}</td>
+                    <td>${expenditure.description || expenditure.category}</td>
+                    <td>${formatCurrency(expenditure.amount)}</td>
                   </tr>
                 `).join('')}
                 <tr class="total-row">
@@ -346,18 +343,15 @@ export default function ReportsPage() {
               <span className="font-bold text-red-600">{formatCurrency(totalEmployeeSalaries)}</span>
             </div>
             
-            {filteredExpenses.map((expense, index) => (
-              <div key={expense.id} className="flex justify-between items-center py-3 border-b">
-                <span className="text-gray-600">{expense.description}</span>
+            {filteredExpenditures.map((expenditure, index) => (
+              <div key={expenditure.id} className="flex justify-between items-center py-3 border-b">
+                <div className="flex flex-col">
+                  <span className="text-gray-600">{expenditure.description || expenditure.category}</span>
+                  <span className="text-sm text-gray-400">{expenditure.expenseDate} • {expenditure.category}</span>
+                </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-400">PKR</span>
-                  <input
-                    type="number"
-                    value={expense.amount}
-                    onChange={(e) => updateExpense(expense.id, e.target.value)}
-                    className="w-24 px-2 py-1 border rounded text-right font-bold text-red-600"
-                    placeholder="0"
-                  />
+                  <span className="font-bold text-red-600">{formatCurrency(expenditure.amount)}</span>
                 </div>
               </div>
             ))}

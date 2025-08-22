@@ -17,9 +17,14 @@ export async function GET() {
 export async function POST(request) {
   try {
     const data = await request.json();
+    console.log('Received employee advance data:', JSON.stringify(data, null, 2));
     
     // Validate required fields
     if (!data.employeeId || !data.amount) {
+      console.log('Validation failed - missing required fields:', {
+        employeeId: data.employeeId,
+        amount: data.amount
+      });
       return NextResponse.json({ error: 'Employee and amount are required' }, { status: 400 });
     }
     
@@ -33,16 +38,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
     }
     
+    // Insert employee advance according to the actual schema
     const insertQuery = `
-      INSERT INTO employee_advances (employee_id, amount, advance_date, notes, is_active, created_at, updated_at, tenant_id)
-      VALUES ($1, $2, COALESCE($3, CURRENT_DATE), COALESCE($4, ''), true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
-      RETURNING id, employee_id as "employeeId", amount, advance_date as "advanceDate", notes, is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
+      INSERT INTO employee_advances (employee_id, advance_date, amount, notes)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, employee_id as "employeeId", advance_date as "advanceDate", 
+                amount, notes, created_at as "createdAt"
     `;
     
     const result = await query(insertQuery, [
       parseInt(data.employeeId),
+      data.advanceDate ? new Date(data.advanceDate) : new Date(),
       parseFloat(data.amount),
-      data.date,
       data.notes || data.description || ''
     ]);
     
@@ -55,6 +62,12 @@ export async function POST(request) {
     return NextResponse.json(responseData, { status: 201 });
   } catch (error) {
     console.error('Error creating employee advance:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail
+    });
     return NextResponse.json({ error: 'Failed to create employee advance', details: error.message }, { status: 500 });
   }
 }

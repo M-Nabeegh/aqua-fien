@@ -31,12 +31,12 @@ export default function ExpendituresPage() {
       .then(data => {
         if (Array.isArray(data)) {
           const employeeOptions = [
-            { value: '', label: 'None' },
+            { value: '', label: 'None (No Salesman Associated)' },
             ...data.map(emp => ({ value: emp.id, label: emp.name }))
           ]
           setFieldConfig(prev => ({
             ...prev,
-            employeeId: { ...prev.employeeId, options: employeeOptions }
+            employeeId: { ...prev.employeeId, options: employeeOptions, required: false }
           }))
         }
       })
@@ -60,8 +60,9 @@ export default function ExpendituresPage() {
     },
     employeeId: { 
       type: 'select', 
-      label: 'Employee (Optional)', 
-      options: [{ value: '', label: 'Loading...' }]
+      label: 'Salesman/Employee (Optional)', 
+      options: [{ value: '', label: 'Loading...' }],
+      required: false
     }
   })
 

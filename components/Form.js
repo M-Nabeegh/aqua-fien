@@ -1,19 +1,57 @@
 'use client'
 import { useState, useEffect } from 'react'
 
-export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfig = {}, employees = [], customers = [], products = [], salesEmployees = [] }) {
+// Helper function to fetch the effective price for a customer-product combination
+const fetchCustomerProductPrice = async (customerId, productId) => {
+  try {
+    const response = await fetch(`/api/pricing?customerId=${customerId}&productId=${productId}`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch pricing')
+    }
+    const data = await response.json()
+    return data.effectivePrice
+  } catch (error) {
+    console.error('Error fetching customer product price:', error)
+    throw error
+  }
+}
+
+export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfig = {}, employees = [], customers = [], products = [], salesEmployees = [], initialData = null }) {
   const [form, setForm] = useState(() => {
     const initialForm = Object.fromEntries(fields.map(f => [f, '']))
-    // Set current date as default for date fields
-    if (title.includes('Employee Advance') && fields.includes('date')) {
-      initialForm.date = new Date().toISOString().split('T')[0]
+    
+    // If initialData is provided, merge it with the initial form
+    if (initialData) {
+      Object.keys(initialData).forEach(key => {
+        if (fields.includes(key) && initialData[key] !== null && initialData[key] !== undefined) {
+          // Format dates properly
+          if (key.includes('Date') && initialData[key]) {
+            try {
+              const date = new Date(initialData[key])
+              initialForm[key] = date.toISOString().split('T')[0]
+            } catch (error) {
+              initialForm[key] = initialData[key]
+            }
+          } else {
+            initialForm[key] = initialData[key]
+          }
+        }
+      })
     }
-    if (title.includes('Customer Advance') && fields.includes('date')) {
-      initialForm.date = new Date().toISOString().split('T')[0]
+    
+    // Set current date as default for date fields only if not provided in initialData
+    if (!initialData) {
+      if (title.includes('Employee Advance') && fields.includes('date')) {
+        initialForm.date = new Date().toISOString().split('T')[0]
+      }
+      if (title.includes('Customer Advance') && fields.includes('date')) {
+        initialForm.date = new Date().toISOString().split('T')[0]
+      }
+      if (title.includes('Sell Order') && fields.includes('billDate')) {
+        initialForm.billDate = new Date().toISOString().split('T')[0]
+      }
     }
-    if (title.includes('Sell Order') && fields.includes('billDate')) {
-      initialForm.billDate = new Date().toISOString().split('T')[0]
-    }
+    
     return initialForm
   })
   const [productList, setProductList] = useState([])
@@ -26,9 +64,32 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
       .catch(err => console.error('Error fetching products:', err))
   }, [])
 
+  // Update form when initialData changes (for editing)
+  useEffect(() => {
+    if (initialData) {
+      const updatedForm = { ...form }
+      Object.keys(initialData).forEach(key => {
+        if (fields.includes(key) && initialData[key] !== null && initialData[key] !== undefined) {
+          // Format dates properly
+          if (key.includes('Date') && initialData[key]) {
+            try {
+              const date = new Date(initialData[key])
+              updatedForm[key] = date.toISOString().split('T')[0]
+            } catch (error) {
+              updatedForm[key] = initialData[key]
+            }
+          } else {
+            updatedForm[key] = initialData[key]
+          }
+        }
+      })
+      setForm(updatedForm)
+    }
+  }, [initialData])
+
   const handleInputChange = (field, value) => {
     // Validation for numeric fields
-    if ((field === 'phone' || field === 'openingBottles' || field === 'productPrice' || field === 'cnic' || field === 'salary' || field === 'amount' || field === 'bottleCost' || field === 'quantity') && value !== '') {
+    if ((field === 'openingBottles' || field === 'productPrice' || field === 'cnic' || field === 'salary' || field === 'amount' || field === 'bottleCost' || field === 'quantity') && value !== '') {
       // Only allow numbers and decimal points for price, salary, and amount
       if (field === 'productPrice' || field === 'salary' || field === 'amount' || field === 'bottleCost') {
         if (!/^\d*\.?\d*$/.test(value)) {
@@ -40,6 +101,18 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
           return
         }
       } else if (!/^\d*$/.test(value)) {
+        return
+      }
+    }
+    
+    // Special handling for phone field - allow Pakistani phone number formats
+    if (field === 'phone' && value !== '') {
+      // Allow digits, +, spaces, dashes
+      if (!/^[\d+\s\-]*$/.test(value)) {
+        return
+      }
+      // Limit length to reasonable phone number length
+      if (value.length > 16) {
         return
       }
     }
@@ -74,12 +147,31 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
       const selectedCustomer = customers.find(c => c.name === form.customerName)
       
       if (selectedProduct && selectedCustomer) {
-        // Use customer-specific price if available, otherwise use base price
-        const bottleCost = selectedCustomer.productPrice || selectedProduct.basePrice
+        // Fetch custom pricing from API
+        fetchCustomerProductPrice(selectedCustomer.id, selectedProduct.id)
+          .then(price => {
+            setForm(prevForm => ({ 
+              ...prevForm, 
+              [field]: value,
+              bottleCost: price.toString()
+            }))
+          })
+          .catch(err => {
+            console.error('Error fetching customer price:', err)
+            // Fallback to base price
+            setForm(prevForm => ({ 
+              ...prevForm, 
+              [field]: value,
+              bottleCost: selectedProduct.basePrice?.toString() || '0'
+            }))
+          })
+        return
+      } else if (selectedProduct) {
+        // If no customer selected yet, just use base price
         setForm({ 
           ...form, 
           [field]: value,
-          bottleCost: bottleCost.toString()
+          bottleCost: selectedProduct.basePrice?.toString() || '0'
         })
         return
       }
@@ -91,12 +183,24 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
       const selectedCustomer = customers.find(c => c.name === value)
       
       if (selectedProduct && selectedCustomer) {
-        const bottleCost = selectedCustomer.productPrice || selectedProduct.basePrice
-        setForm({ 
-          ...form, 
-          [field]: value,
-          bottleCost: bottleCost.toString()
-        })
+        // Fetch custom pricing from API
+        fetchCustomerProductPrice(selectedCustomer.id, selectedProduct.id)
+          .then(price => {
+            setForm(prevForm => ({ 
+              ...prevForm, 
+              [field]: value,
+              bottleCost: price.toString()
+            }))
+          })
+          .catch(err => {
+            console.error('Error fetching customer price:', err)
+            // Fallback to base price
+            setForm(prevForm => ({ 
+              ...prevForm, 
+              [field]: value,
+              bottleCost: selectedProduct.basePrice?.toString() || '0'
+            }))
+          })
         return
       }
     }
@@ -247,7 +351,7 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
               value={form[field]}
               onChange={(e) => handleInputChange(field, e.target.value)}
               className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
+              required={fieldConfig[field]?.required !== false}
             >
               <option value="">Select {fieldConfig[field]?.label || field}</option>
               {options.map(option => (
@@ -268,10 +372,29 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
             name={field}
             placeholder={placeholder}
             value={form[field]}
+            min={fieldConfig[field]?.min}
+            step={fieldConfig[field]?.step}
+            readOnly={fieldConfig[field]?.readOnly}
+            onChange={(e) => handleInputChange(field, e.target.value)}
+            className={`w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              fieldConfig[field]?.readOnly ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
+            inputMode={field === 'productPrice' || field === 'salary' || field === 'amount' || field === 'bottleCost' ? 'decimal' : 'numeric'}
+            required={fieldConfig[field]?.required !== false}
+          />
+        )
+      
+      case 'tel':
+        return (
+          <input
+            key={field}
+            type="tel"
+            name={field}
+            placeholder={placeholder}
+            value={form[field]}
             onChange={(e) => handleInputChange(field, e.target.value)}
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            inputMode={field === 'productPrice' || field === 'salary' || field === 'amount' || field === 'bottleCost' ? 'decimal' : 'numeric'}
-            required
+            required={fieldConfig[field]?.required !== false}
           />
         )
       
@@ -283,9 +406,12 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
             name={field}
             placeholder={placeholder}
             value={form[field]}
+            readOnly={fieldConfig[field]?.readOnly}
             onChange={(e) => handleInputChange(field, e.target.value)}
-            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+            className={`w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              fieldConfig[field]?.readOnly ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
+            required={fieldConfig[field]?.required !== false}
           />
         )
     }
@@ -298,9 +424,16 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
   const handleSubmit = (e) => {
     e.preventDefault()
     
-    // Check if all fields are filled (except optional ones)
+    // Check if all required fields are filled
     const optionalFields = ['salesmanAppointed'] // Add other optional fields here
-    const requiredFields = fields.filter(field => !optionalFields.includes(field))
+    const requiredFields = fields.filter(field => {
+      // Check if field is explicitly marked as not required
+      if (fieldConfig[field]?.required === false) return false
+      // Check if field is in optional list
+      if (optionalFields.includes(field)) return false
+      return true
+    })
+    
     const emptyFields = requiredFields.filter(field => !form[field] || form[field].toString().trim() === '')
     
     if (emptyFields.length > 0) {
@@ -345,22 +478,14 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
             <div key={field}>
               <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
                 {fieldConfig[field]?.label || field.replace(/([A-Z])/g, ' $1').trim()}
-                {field !== 'salesmanAppointed' && <span className="text-red-500 ml-1">*</span>}
+                {fieldConfig[field]?.required !== false && field !== 'salesmanAppointed' && <span className="text-red-500 ml-1">*</span>}
               </label>
               {renderField(field)}
-            </div>
-          ))}
-        </div>
-        
-        {/* Right Column */}
-        <div className="space-y-4">
-          {rightColumnFields.map((field) => (
-            <div key={field}>
-              <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-                {fieldConfig[field]?.label || field.replace(/([A-Z])/g, ' $1').trim()}
-                {field !== 'salesmanAppointed' && <span className="text-red-500 ml-1">*</span>}
-              </label>
-              {renderField(field)}
+              {fieldConfig[field]?.helperText && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {fieldConfig[field].helperText}
+                </p>
+              )}
               {field === 'productPrice' && (
                 <p className="text-xs text-gray-500 mt-1">
                   Price auto-fills when product is selected. You can customize it.
@@ -398,7 +523,70 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
               )}
               {field === 'billDate' && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Select bill date (today's date recommended).
+                  Select bill date (today&apos;s date recommended).
+                </p>
+              )}
+              {field === 'salesmanAppointed' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Optional: Select a rider for delivery.
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        {/* Right Column */}
+        <div className="space-y-4">
+          {rightColumnFields.map((field) => (
+            <div key={field}>
+              <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
+                {fieldConfig[field]?.label || field.replace(/([A-Z])/g, ' $1').trim()}
+                {fieldConfig[field]?.required !== false && field !== 'salesmanAppointed' && <span className="text-red-500 ml-1">*</span>}
+              </label>
+              {renderField(field)}
+              {fieldConfig[field]?.helperText && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {fieldConfig[field].helperText}
+                </p>
+              )}
+              {field === 'productPrice' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Price auto-fills when product is selected. You can customize it.
+                </p>
+              )}
+              {field === 'joiningDate' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Cannot select future dates.
+                </p>
+              )}
+              {field === 'cnic' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter exactly 13 digits without dashes (e.g., 1234567890123).
+                </p>
+              )}
+              {field === 'salary' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter salary amount (decimals allowed).
+                </p>
+              )}
+              {field === 'amount' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter advance amount (decimals allowed).
+                </p>
+              )}
+              {field === 'bottleCost' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Auto-fills based on customer and product selection.
+                </p>
+              )}
+              {field === 'quantity' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter number of bottles.
+                </p>
+              )}
+              {field === 'billDate' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Select bill date (today&apos;s date recommended).
                 </p>
               )}
               {field === 'salesmanAppointed' && (

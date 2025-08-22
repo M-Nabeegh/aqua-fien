@@ -48,10 +48,10 @@ export async function POST(request) {
       }
       
       result = await query(
-        `INSERT INTO customer_advances (customer_id, amount, advance_date, description, status)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, amount, advance_date as date, description, status, created_at as "createdAt"`,
-        [parseInt(entityId), parseFloat(amount), date ? new Date(date) : new Date(), description || '', 'pending']
+        `INSERT INTO customer_advances (customer_id, amount, advance_date, notes, is_active, created_at, updated_at, tenant_id)
+         VALUES ($1, $2, $3, $4, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
+         RETURNING id, amount, advance_date as date, notes as description, created_at as "createdAt"`,
+        [parseInt(entityId), parseFloat(amount), date ? new Date(date) : new Date(), description || '']
       )
       
       result.rows[0].type = 'customer'
@@ -69,10 +69,10 @@ export async function POST(request) {
       }
       
       result = await query(
-        `INSERT INTO employee_advances (employee_id, amount, advance_date, description, status)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, amount, advance_date as date, description, status, created_at as "createdAt"`,
-        [parseInt(entityId), parseFloat(amount), date ? new Date(date) : new Date(), description || '', 'pending']
+        `INSERT INTO employee_advances (employee_id, amount, advance_date, notes)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, amount, advance_date as date, notes as description, created_at as "createdAt"`,
+        [parseInt(entityId), parseFloat(amount), date ? new Date(date) : new Date(), description || '']
       )
       
       result.rows[0].type = 'employee'

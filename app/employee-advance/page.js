@@ -16,14 +16,36 @@ export default function EmployeeAdvancePage() {
 
   const addAdvance = async (data) => {
     try {
-      console.log('Sending POST request to create employee advance:', data)
+      // Find employee ID from name
+      const selectedEmployee = employees.find(emp => emp.name === data.employeeName)
+      
+      if (!selectedEmployee) {
+        alert('Selected employee not found')
+        return
+      }
+
+      // Transform data to match API expectations
+      const advanceData = {
+        employeeId: selectedEmployee.id,
+        advanceDate: data.date,
+        amount: parseFloat(data.amount),
+        notes: data.description || ''
+      }
+
+      console.log('Data transformation:', {
+        employeeName: data.employeeName,
+        selectedEmployee: selectedEmployee ? { id: selectedEmployee.id, name: selectedEmployee.name } : null,
+        transformedData: advanceData
+      });
+
+      console.log('Sending POST request to create employee advance:', advanceData)
       
       const response = await fetch('/api/employee-advances', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(advanceData)
       })
       
       if (!response.ok) {

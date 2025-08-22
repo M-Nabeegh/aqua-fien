@@ -102,7 +102,10 @@ export default function ExpenditureLedgersPage() {
     printWindow.print()
   }
 
-  const formatCurrency = (amount) => `PKR ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
+  const formatCurrency = (amount) => {
+    const num = parseFloat(amount || 0)
+    return `PKR ${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
+  }
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Table from '../../components/Table'
 
 export default function EmployeeLedgersPage() {
@@ -19,7 +19,7 @@ export default function EmployeeLedgersPage() {
     fetch('/api/employee-advances').then(r => r.json()).then(setAdvances).catch(() => setAdvances([]))
   }, [])
 
-  const calculateLedger = () => {
+  const calculateLedger = useCallback(() => {
     let filteredEmployees = employees
 
     // Filter by employee type if selected
@@ -62,7 +62,7 @@ export default function EmployeeLedgersPage() {
     })
 
     setLedgerData(ledger)
-  }
+  }, [employees, advances, selectedEmployeeType, dateFrom, dateTo])
 
   const printSingleEmployeeLedger = (employeeName) => {
     const employee = employees.find(emp => emp.name === employeeName)
@@ -117,9 +117,9 @@ export default function EmployeeLedgersPage() {
             <tbody>
               ${employeeAdvances.map(adv => `
                 <tr>
-                  <td>${adv.date}</td>
+                  <td>${adv.advanceDate || 'N/A'}</td>
                   <td>Rs. ${parseFloat(adv.amount).toFixed(2)}</td>
-                  <td>${adv.description}</td>
+                  <td>${adv.notes || adv.description || 'No description'}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -140,7 +140,7 @@ export default function EmployeeLedgersPage() {
 
   useEffect(() => {
     calculateLedger()
-  }, [employees, advances, selectedEmployeeType, dateFrom, dateTo])
+  }, [calculateLedger])
 
   const filteredEmployees = selectedEmployeeType 
     ? employees.filter(emp => emp.employeeType && emp.employeeType.toLowerCase() === selectedEmployeeType.toLowerCase())

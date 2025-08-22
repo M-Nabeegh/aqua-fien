@@ -2,10 +2,12 @@
 import { useEffect, useState } from 'react'
 import Table from '../../components/Table'
 import Form from '../../components/Form'
+import SearchableCustomerSelect from '../../components/SearchableCustomerSelect'
 
 export default function CustomerAdvancePage() {
   const [advances, setAdvances] = useState([])
   const [customers, setCustomers] = useState([])
+  const [selectedCustomer, setSelectedCustomer] = useState(null)
 
   useEffect(() => {
     // Fetch customer advances
@@ -45,9 +47,14 @@ export default function CustomerAdvancePage() {
     try {
       console.log('Form data received:', data)
       
+      if (!selectedCustomer) {
+        alert('Please select a customer first')
+        return
+      }
+      
       // Map form data to API fields
       const customerAdvanceData = {
-        customerId: data.customerId || data.customerName, // Handle both field names
+        customerId: selectedCustomer.id,
         amount: parseFloat(data.amount),
         date: data.date,
         notes: data.notes || data.description || ''
@@ -77,6 +84,8 @@ export default function CustomerAdvancePage() {
         .then(data => Array.isArray(data) ? data : [])
       setAdvances(updatedAdvances)
       
+      // Reset selected customer and show success message
+      setSelectedCustomer(null)
       alert('Customer advance added successfully!')
     } catch (error) {
       console.error('Error creating customer advance:', error)
@@ -86,11 +95,6 @@ export default function CustomerAdvancePage() {
 
   // Field configuration for the form
   const fieldConfig = {
-    customerId: { 
-      type: 'select', 
-      label: 'Customer', 
-      options: customers.map(customer => ({ value: customer.id, label: customer.name }))
-    },
     date: { type: 'date', label: 'Advance Date' },
     amount: { type: 'number', label: 'Amount (PKR)', placeholder: 'Enter advance amount' },
     notes: { type: 'text', label: 'Notes', placeholder: 'Enter notes for the advance' }
@@ -103,9 +107,22 @@ export default function CustomerAdvancePage() {
       </div>
       
       <div className="bg-white rounded-xl shadow-lg p-6">
+        {/* Searchable Customer Selection */}
+        <div className="mb-6">
+          <SearchableCustomerSelect
+            customers={customers}
+            selectedCustomer={selectedCustomer}
+            onCustomerSelect={setSelectedCustomer}
+            placeholder="Search and select a customer..."
+            label="Select Customer"
+            required={true}
+          />
+        </div>
+
+        {/* Customer Advance Form */}
         <Form 
           title="Add Customer Advance" 
-          fields={['customerId', 'date', 'amount', 'notes']} 
+          fields={['date', 'amount', 'notes']} 
           fieldConfig={fieldConfig}
           onSubmit={addAdvance}
           buttonText="Add Advance"

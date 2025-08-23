@@ -142,17 +142,24 @@ export default function Navbar() {
               <div className="absolute top-full left-0 mt-2 bg-white text-gray-800 rounded-lg shadow-xl min-w-56 z-50 border border-gray-200">
                 <Link 
                   href="/rider-inout" 
-                  className="block px-4 py-3 hover:bg-blue-50 rounded-t-lg transition-colors"
+                  className="block px-4 py-3 hover:bg-blue-50 transition-colors"
                   onClick={() => setIsRiderDropdownOpen(false)}
                 >
                   📦 Add Rider Activity
                 </Link>
                 <Link 
                   href="/rider-ledgers" 
-                  className="block px-4 py-3 hover:bg-blue-50 rounded-b-lg transition-colors"
+                  className="block px-4 py-3 hover:bg-blue-50 transition-colors"
                   onClick={() => setIsRiderDropdownOpen(false)}
                 >
                   📊 Rider Ledgers
+                </Link>
+                <Link 
+                  href="/accountability" 
+                  className="block px-4 py-3 hover:bg-blue-50 rounded-b-lg transition-colors"
+                  onClick={() => setIsRiderDropdownOpen(false)}
+                >
+                  🧮 Rider Accountability
                 </Link>
               </div>
             )}

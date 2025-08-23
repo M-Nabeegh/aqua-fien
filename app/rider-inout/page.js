@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 export default function RiderInOutPage() {
   const [riderActivities, setRiderActivities] = useState([])
   const [riders, setRiders] = useState([])
+  const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
   
@@ -11,6 +12,7 @@ export default function RiderInOutPage() {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0], // Current date
     employeeId: '',
+    productId: '',
     salesmanRepresentative: '',
     emptyBottlesReceived: '',
     filledBottlesSent: '',
@@ -20,7 +22,20 @@ export default function RiderInOutPage() {
   useEffect(() => {
     fetchRiderActivities()
     fetchRiders()
+    fetchProducts()
   }, [])
+
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('/api/products')
+      if (response.ok) {
+        const data = await response.json()
+        setProducts(data)
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error)
+    }
+  }
 
   const fetchRiders = async () => {
     try {
@@ -66,10 +81,13 @@ export default function RiderInOutPage() {
       })
 
       if (response.ok) {
+        const result = await response.json()
+        
         // Reset form
         setFormData({
           date: new Date().toISOString().split('T')[0],
           employeeId: '',
+          productId: '',
           salesmanRepresentative: '',
           emptyBottlesReceived: '',
           filledBottlesSent: '',
@@ -78,7 +96,20 @@ export default function RiderInOutPage() {
         
         // Refresh the list
         fetchRiderActivities()
-        alert('Rider activity added successfully!')
+        
+        // Show accountability information if available
+        if (result.accountability && !result.accountability.error) {
+          const { totalFilledBottlesSent, totalBottlesSold, bottlesRemaining, accountabilityStatus } = result.accountability
+          alert(`Rider activity added successfully!
+
+Accountability Summary:
+📦 Total Bottles Sent: ${totalFilledBottlesSent}
+💰 Total Bottles Sold: ${totalBottlesSold}
+📋 Bottles Remaining: ${bottlesRemaining}
+🔍 Status: ${accountabilityStatus}`)
+        } else {
+          alert('Rider activity added successfully!')
+        }
       } else {
         alert('Failed to add rider activity')
       }
@@ -168,6 +199,27 @@ export default function RiderInOutPage() {
                 {riders.map((rider) => (
                   <option key={rider.id} value={rider.id}>
                     {rider.name} - {rider.phone || 'No phone'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Product Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                🥤 Product
+              </label>
+              <select
+                name="productId"
+                value={formData.productId}
+                onChange={handleInputChange}
+                required
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select Product</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} - {product.size || 'N/A'}
                   </option>
                 ))}
               </select>

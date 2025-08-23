@@ -1,30 +1,44 @@
+import { NextResponse } from 'next/server';
+import { query } from '../../../lib/db.js';
+
 export async function GET() {
   try {
-    // Debug environment variables
-    const debugInfo = {
-      NODE_ENV: process.env.NODE_ENV,
-      DB_HOST: process.env.DB_HOST,
-      DB_PORT: process.env.DB_PORT,
-      DB_NAME: process.env.DB_NAME,
-      DB_USER: process.env.DB_USER,
-      DB_PASSWORD: process.env.DB_PASSWORD ? 'SET' : 'NOT SET',
-      DB_SSL: process.env.DB_SSL,
-      USE_CONNECTION_STRING: process.env.USE_CONNECTION_STRING,
-      DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
-      POSTGRES_URL: process.env.POSTGRES_URL ? 'SET' : 'NOT SET'
-    }
-
-    return Response.json({ 
-      success: true, 
-      message: 'Debug info retrieved',
-      environment: debugInfo,
+    console.log('Testing database connection in production...');
+    
+    // Test basic connection
+    const testResult = await query('SELECT 1 as test');
+    console.log('Basic connection test result:', testResult);
+    
+    // Test products table access
+    const productCount = await query('SELECT COUNT(*) as count FROM products');
+    console.log('Product count result:', productCount);
+    
+    // Test the view
+    const viewTest = await query('SELECT COUNT(*) as count FROM v_products_api');
+    console.log('View test result:', viewTest);
+    
+    // Test full products query
+    const products = await query('SELECT * FROM v_products_api ORDER BY "isActive" DESC, "createdAt" DESC LIMIT 3');
+    console.log('Products query result:', products);
+    
+    return NextResponse.json({
+      message: 'Database connection test successful',
+      tests: {
+        basicConnection: testResult,
+        productCount: productCount,
+        viewTest: viewTest,
+        sampleProducts: products
+      },
       timestamp: new Date().toISOString()
-    })
+    });
+    
   } catch (error) {
-    return Response.json({ 
-      success: false, 
-      error: error.message,
+    console.error('Database test error:', error);
+    return NextResponse.json({
+      error: 'Database connection failed',
+      message: error.message,
+      stack: error.stack,
       timestamp: new Date().toISOString()
-    }, { status: 500 })
+    }, { status: 500 });
   }
 }

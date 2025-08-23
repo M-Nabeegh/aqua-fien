@@ -4,7 +4,8 @@ import { query } from '../../../lib/db';
 export async function GET() {
   try {
     console.log('Fetching products from database...');
-    const result = await query('SELECT * FROM v_products_api WHERE "isActive" = true ORDER BY "createdAt" DESC');
+    // Show all products but order active ones first
+    const result = await query('SELECT * FROM v_products_api ORDER BY "isActive" DESC, "createdAt" DESC');
     
     console.log(`Found ${result.rows.length} products`);
     return NextResponse.json(result.rows);

@@ -15,10 +15,9 @@ async function calculateRiderAccountability(riderId, productId) {
     
     // Get total bottles sold by this rider for this product from sell_orders
     const bottlesSoldResult = await query(`
-      SELECT COALESCE(SUM(soi.quantity), 0) as total_sold
-      FROM sell_orders so
-      JOIN sell_order_items soi ON so.id = soi.sell_order_id
-      WHERE so.rider_id = $1 AND soi.product_id = $2 AND so.is_active = true
+      SELECT COALESCE(SUM(quantity), 0) as total_sold
+      FROM sell_orders 
+      WHERE salesman_employee_id = $1 AND product_id = $2 AND is_active = true
     `, [riderId, productId])
     
     const totalBottlesSold = parseInt(bottlesSoldResult.rows[0].total_sold) || 0

@@ -38,6 +38,7 @@ export default function RiderAccountability() {
 
   const fetchAllAccountabilities = async () => {
     try {
+      setLoading(true)
       const response = await fetch('/api/employees')
       const ridersData = await response.json()
       const allRiders = ridersData.filter(emp => emp.position === 'rider' || emp.position === 'salesman')
@@ -47,20 +48,26 @@ export default function RiderAccountability() {
       
       const accountabilities = []
       
-      for (const rider of allRiders) {
-        for (const product of productsData) {
+      // Limit to first few riders to avoid timeout
+      const limitedRiders = allRiders.slice(0, 5)
+      const limitedProducts = productsData.slice(0, 3)
+      
+      for (const rider of limitedRiders) {
+        for (const product of limitedProducts) {
           try {
             const accountabilityResponse = await fetch(
               `/api/rider-activities?accountability=true&riderId=${rider.id}&productId=${product.id}`
             )
-            const accountabilityData = await accountabilityResponse.json()
-            
-            if (accountabilityData.totalFilledBottlesSent > 0 || accountabilityData.totalBottlesSold > 0) {
-              accountabilities.push({
-                ...accountabilityData,
-                riderName: rider.name,
-                productName: product.name
-              })
+            if (accountabilityResponse.ok) {
+              const accountabilityData = await accountabilityResponse.json()
+              
+              if (accountabilityData.totalFilledBottlesSent > 0 || accountabilityData.totalBottlesSold > 0) {
+                accountabilities.push({
+                  ...accountabilityData,
+                  riderName: rider.name,
+                  productName: product.name
+                })
+              }
             }
           } catch (error) {
             console.error(`Error fetching accountability for rider ${rider.id}, product ${product.id}:`, error)
@@ -71,6 +78,9 @@ export default function RiderAccountability() {
       setAllAccountabilities(accountabilities)
     } catch (error) {
       console.error('Error fetching all accountabilities:', error)
+      setAllAccountabilities([])
+    } finally {
+      setLoading(false)
     }
   }
 

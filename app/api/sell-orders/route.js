@@ -105,62 +105,42 @@ export async function POST(request) {
     // Calculate total amount
     const totalAmount = processedItems.reduce((sum, item) => sum + item.totalPrice, 0);
     
+    // Process single item order (this table structure stores one item per order)
+    const item = processedItems[0]; // Take the first item since this table structure supports one item per order
+    
     // Create sell order
     const orderResult = await query(
-      `INSERT INTO sell_orders (customer_id, rider_id, order_date, total_amount, 
-                                status, delivery_date, payment_status, notes)
+      `INSERT INTO sell_orders (customer_id, product_id, quantity, bottle_cost, total_amount, 
+                                salesman_employee_id, bill_date, remarks)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, order_date as "billDate", total_amount as "totalAmount",
-                 status, delivery_date as "deliveryDate", payment_status as "paymentStatus",
-                 notes, created_at as "createdAt"`,
+       RETURNING id, bill_date as "billDate", total_amount as "totalAmount",
+                 product_id, quantity, bottle_cost, remarks, created_at as "createdAt"`,
       [
         parseInt(data.customerId),
+        item.productId,
+        item.quantity,
+        item.unitPrice,
+        totalAmount,
         data.salesmanId ? parseInt(data.salesmanId) : null,
         data.billDate ? new Date(data.billDate) : new Date(),
-        totalAmount,
-        data.status || 'pending',
-        data.deliveryDate ? new Date(data.deliveryDate) : null,
-        data.paymentStatus || 'pending',
         data.notes || ''
       ]
-    );
-    
-    const orderId = orderResult.rows[0].id;
-    
-    // Create order items with correct pricing
-    const itemInserts = processedItems.map(item => 
-      query(
-        `INSERT INTO sell_order_items (sell_order_id, product_id, quantity, unit_price, total_price)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, quantity, unit_price as "bottleCost", total_price as "itemTotal"`,
-        [
-          orderId,
-          item.productId,
-          item.quantity,
-          item.unitPrice,
-          item.totalPrice
-        ]
-      )
-    );
-    
-    const itemResults = await Promise.all(itemInserts);
-    
+    )
+
     // Return data in expected format
     const responseData = {
-      id: orderId,
+      id: orderResult.rows[0].id,
       customerName: customerResult.rows[0].name,
-      productName: processedItems.length > 1 ? 'Multiple Products' : processedItems[0].productName,
-      bottleCost: processedItems[0].unitPrice,
-      quantity: processedItems.reduce((sum, item) => sum + item.quantity, 0),
+      productName: item.productName,
+      bottleCost: item.unitPrice,
+      quantity: item.quantity,
       totalAmount: totalAmount,
       billDate: orderResult.rows[0].billDate,
       salesmanAppointed: data.salesmanAppointed || 'Unassigned',
-      createdAt: orderResult.rows[0].createdAt,
-      status: orderResult.rows[0].status,
-      items: processedItems // Include detailed item information
-    };
-    
-    return NextResponse.json(responseData, { status: 201 });
+      createdAt: orderResult.rows[0].createdAt
+    }
+
+    return NextResponse.json(responseData, { status: 201 })
   } catch (error) {
     console.error('Error creating sell order:', error);
     return NextResponse.json({ error: 'Failed to create sell order', details: error.message }, { status: 500 });

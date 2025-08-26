@@ -87,7 +87,7 @@ export default function BackupManager() {
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-800 mb-2">What's included in the backup:</h3>
+          <h3 className="font-semibold text-blue-800 mb-2">What&apos;s included in the backup:</h3>
           <ul className="text-sm text-blue-700 space-y-1">
             <li>• All customers and customer pricing</li>
             <li>• All products and inventory data</li>

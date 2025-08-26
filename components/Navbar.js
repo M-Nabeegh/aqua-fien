@@ -109,11 +109,18 @@ export default function Navbar() {
                   ➕ Add Employee
                 </Link>
                 <Link 
+                  href="/salary-payments" 
+                  className="block px-4 py-3 hover:bg-blue-50 transition-colors"
+                  onClick={() => setIsEmployeeDropdownOpen(false)}
+                >
+                  💰 Salary Payments
+                </Link>
+                <Link 
                   href="/employee-advance" 
                   className="block px-4 py-3 hover:bg-blue-50 transition-colors"
                   onClick={() => setIsEmployeeDropdownOpen(false)}
                 >
-                  💰 Add Employee Advance
+                  � Employee Advance
                 </Link>
                 <Link 
                   href="/employee-ledgers" 
@@ -196,6 +203,10 @@ export default function Navbar() {
               </div>
             )}
           </div>
+          
+          <Link href="/backup" className="hover:text-blue-200 transition-colors font-medium">
+            💾 Backup
+          </Link>
           
           <Link href="/reports" className="hover:text-blue-200 transition-colors font-medium">
             📈 Reports

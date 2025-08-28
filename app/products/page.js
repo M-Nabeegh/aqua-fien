@@ -134,9 +134,9 @@ export default function ProductsPage() {
           color="green"
         />
         <DashboardCard
-          title="Categories"
-          value={[...new Set(products.map(p => p.category))].length}
-          icon="📋"
+          title="Active Products"
+          value={products.filter(p => p.isActive).length}
+          icon="✅"
           color="purple"
         />
       </div>

@@ -84,8 +84,6 @@ export default function CustomerLedgersPage() {
             <h2>Customer: ${customer.name}</h2>
             <p><strong>Phone:</strong> ${customer.phone}</p>
             <p><strong>Address:</strong> ${customer.address}</p>
-            <p><strong>Product:</strong> ${customer.productSelect}</p>
-            <p><strong>Product Price:</strong> Rs. ${customer.productPrice}</p>
           </div>
 
           <h3>Advances Given</h3>

@@ -163,7 +163,7 @@ export default function RiderActivitiesPage() {
               <option value="">Choose a product...</option>
               {products.map(product => (
                 <option key={product.id} value={product.id}>
-                  {product.name} ({product.category})
+                  {product.name}
                 </option>
               ))}
             </select>

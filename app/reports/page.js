@@ -10,6 +10,7 @@ export default function ReportsPage() {
   const [employeeAdvances, setEmployeeAdvances] = useState([])
   const [riderActivities, setRiderActivities] = useState([])
   const [expenditures, setExpenditures] = useState([])
+  const [salaryPayments, setSalaryPayments] = useState([])
   const [loading, setLoading] = useState(true)
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -17,14 +18,15 @@ export default function ReportsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [customersRes, employeesRes, sellOrdersRes, customerAdvancesRes, employeeAdvancesRes, riderActivitiesRes, expendituresRes] = await Promise.all([
+        const [customersRes, employeesRes, sellOrdersRes, customerAdvancesRes, employeeAdvancesRes, riderActivitiesRes, expendituresRes, salaryPaymentsRes] = await Promise.all([
           fetch('/api/customers').then(r => r.json()).catch(() => []),
           fetch('/api/employees').then(r => r.json()).catch(() => []),
           fetch('/api/sell-orders').then(r => r.json()).catch(() => []),
           fetch('/api/customer-advances').then(r => r.json()).catch(() => []),
           fetch('/api/employee-advances').then(r => r.json()).catch(() => []),
           fetch('/api/rider-activities').then(r => r.json()).catch(() => []),
-          fetch('/api/expenditures').then(r => r.json()).catch(() => [])
+          fetch('/api/expenditures').then(r => r.json()).catch(() => []),
+          fetch('/api/salary-payments').then(r => r.json()).catch(() => [])
         ])
 
         setCustomers(customersRes)
@@ -34,6 +36,8 @@ export default function ReportsPage() {
         setEmployeeAdvances(employeeAdvancesRes)
         setRiderActivities(riderActivitiesRes)
         setExpenditures(expendituresRes)
+        setSalaryPayments(salaryPaymentsRes)
+        setSalaryPayments(salaryPaymentsRes)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -48,6 +52,7 @@ export default function ReportsPage() {
   const getFilteredData = () => {
     let filteredSellOrders = sellOrders
     let filteredExpenditures = expenditures
+    let filteredSalaryPayments = salaryPayments
     let filteredRiderActivities = riderActivities
 
     if (fromDate && toDate) {
@@ -57,19 +62,22 @@ export default function ReportsPage() {
       filteredExpenditures = expenditures.filter(expenditure =>
         expenditure.expenseDate >= fromDate && expenditure.expenseDate <= toDate
       )
+      filteredSalaryPayments = salaryPayments.filter(payment =>
+        payment.paymentDate >= fromDate && payment.paymentDate <= toDate
+      )
       filteredRiderActivities = riderActivities.filter(activity =>
         activity.date >= fromDate && activity.date <= toDate
       )
     }
 
-    return { filteredSellOrders, filteredExpenditures, filteredRiderActivities }
+    return { filteredSellOrders, filteredExpenditures, filteredSalaryPayments, filteredRiderActivities }
   }
 
-  const { filteredSellOrders, filteredExpenditures, filteredRiderActivities } = getFilteredData()
+  const { filteredSellOrders, filteredExpenditures, filteredSalaryPayments, filteredRiderActivities } = getFilteredData()
   const totalRevenue = Array.isArray(filteredSellOrders) ? filteredSellOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount || 0), 0) : 0
-  const totalEmployeeSalaries = Array.isArray(employees) ? employees.reduce((sum, emp) => sum + parseFloat(emp.salary || 0), 0) : 0
+  const totalSalaryPayments = Array.isArray(filteredSalaryPayments) ? filteredSalaryPayments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0) : 0
   const totalExpenses = Array.isArray(filteredExpenditures) ? filteredExpenditures.reduce((sum, expenditure) => sum + parseFloat(expenditure.amount || 0), 0) : 0
-  const totalCosts = totalEmployeeSalaries + totalExpenses
+  const totalCosts = totalSalaryPayments + totalExpenses
   const netProfit = totalRevenue - totalCosts
   const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
 
@@ -151,7 +159,7 @@ export default function ReportsPage() {
               <tbody>
                 <tr>
                   <td>Employee Salaries</td>
-                  <td>${formatCurrency(totalEmployeeSalaries)}</td>
+                  <td>${formatCurrency(totalSalaryPayments)}</td>
                 </tr>
                 ${filteredExpenditures.map(expenditure => `
                   <tr>
@@ -340,7 +348,7 @@ export default function ReportsPage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center py-3 border-b">
               <span className="text-gray-600">Employee Salaries</span>
-              <span className="font-bold text-red-600">{formatCurrency(totalEmployeeSalaries)}</span>
+              <span className="font-bold text-red-600">{formatCurrency(totalSalaryPayments)}</span>
             </div>
             
             {filteredExpenditures.map((expenditure, index) => (

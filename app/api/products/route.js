@@ -26,20 +26,15 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Name and base price are required' }, { status: 400 });
     }
     
-    // Format category to lowercase to match enum values
-    const category = (data.category || 'standard').toLowerCase();
-    
     const result = await query(
-      `INSERT INTO products (name, base_price, category, min_price, max_price, is_active, created_at, updated_at, tenant_id)
-       VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
-       RETURNING id, name, base_price as "basePrice", category, min_price as "minPrice", max_price as "maxPrice", 
+      `INSERT INTO products (name, base_price, description, is_active, created_at, updated_at, tenant_id)
+       VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
+       RETURNING id, name, base_price as "basePrice", description, 
                  is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"`,
       [
         data.name,
         parseFloat(data.basePrice),
-        category,
-        data.minPrice ? parseFloat(data.minPrice) : null,
-        data.maxPrice ? parseFloat(data.maxPrice) : null
+        data.description || null
       ]
     );
     

@@ -44,7 +44,6 @@ export async function GET(request) {
         e.name as "salesmanRepresentative",
         ra.product_id,
         p.name as "productName",
-        p.category as "productCategory",
         ra.empty_bottles_received as "emptyBottlesReceived",
         ra.filled_bottles_sent as "filledBottlesSent", 
         ra.filled_product_bought_back as "filledProductBoughtBack",
@@ -134,8 +133,7 @@ export async function POST(request) {
     const responseData = {
       ...result.rows[0],
       salesmanRepresentative: employeeCheck.rows[0].name,
-      productName: productCheck.rows[0].name,
-      productCategory: productCheck.rows[0].category
+      productName: productCheck.rows[0].name
     }
     
     return NextResponse.json(responseData, { status: 201 })

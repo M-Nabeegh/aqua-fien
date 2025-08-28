@@ -11,23 +11,16 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Name and base price are required' }, { status: 400 });
     }
     
-    // Ensure category is lowercase to match enum values
-    const category = (data.category || 'standard').toLowerCase();
-    
     const result = await query(
       `UPDATE products 
-       SET name = $1, base_price = $2, category = $3, 
-           min_price = $4, max_price = $5, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $6 AND is_active = true
-       RETURNING id, name, base_price as "basePrice", category, 
-                 min_price as "minPrice", max_price as "maxPrice", is_active as "isActive",
-                 created_at as "createdAt", updated_at as "updatedAt"`,
+       SET name = $1, base_price = $2, description = $3, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4 AND is_active = true
+       RETURNING id, name, base_price as "basePrice", description, 
+                 is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"`,
       [
         data.name,
         parseFloat(data.basePrice),
-        category,
-        data.minPrice ? parseFloat(data.minPrice) : null,
-        data.maxPrice ? parseFloat(data.maxPrice) : null,
+        data.description || null,
         parseInt(id)
       ]
     );
@@ -74,9 +67,8 @@ export async function GET(request, { params }) {
     const { id } = params;
     
     const result = await query(
-      `SELECT id, name, base_price as "basePrice", category,
-              min_price as "minPrice", max_price as "maxPrice", is_active as "isActive",
-              created_at as "createdAt", updated_at as "updatedAt"
+      `SELECT id, name, base_price as "basePrice", description,
+              is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
        FROM products WHERE id = $1 AND is_active = true`,
       [parseInt(id)]
     );

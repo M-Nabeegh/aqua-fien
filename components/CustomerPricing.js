@@ -169,16 +169,12 @@ export default function CustomerPricing({ products, onPricingChange, initialPric
               {isExpanded && (
                 <div className="border-t bg-gray-50 p-4 space-y-3">
                   {/* Product Details */}
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium text-gray-700">Category:</span>
-                      <span className="ml-2 text-gray-600">{product.category}</span>
+                  {product.description && (
+                    <div className="text-sm">
+                      <span className="font-medium text-gray-700">Description:</span>
+                      <span className="ml-2 text-gray-600">{product.description}</span>
                     </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Unit:</span>
-                      <span className="ml-2 text-gray-600">{product.unit}</span>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Price Constraints */}
                   {(product.minPrice || product.maxPrice) && (

@@ -23,16 +23,7 @@ export default function ProductList({ products, onEdit, onDelete }) {
                 Product
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Category
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Base Price
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Price Range
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Unit
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
@@ -53,40 +44,9 @@ export default function ProductList({ products, onEdit, onDelete }) {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    product.category === 'Premium' 
-                      ? 'bg-purple-100 text-purple-800'
-                      : product.category === 'Bulk'
-                      ? 'bg-blue-100 text-blue-800'
-                      : product.category === 'Services'
-                      ? 'bg-green-100 text-green-800'
-                      : product.category === 'Accessories'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {product.category}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
                     PKR {parseFloat(product.basePrice).toFixed(2)}
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">
-                    {product.minPrice || product.maxPrice ? (
-                      <>
-                        {product.minPrice ? `PKR ${parseFloat(product.minPrice).toFixed(2)}` : 'No min'}
-                        {' - '}
-                        {product.maxPrice ? `PKR ${parseFloat(product.maxPrice).toFixed(2)}` : 'No max'}
-                      </>
-                    ) : (
-                      'No limits'
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">{product.unit}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex space-x-2">
@@ -117,19 +77,9 @@ export default function ProductList({ products, onEdit, onDelete }) {
             <div className="flex justify-between items-start mb-3">
               <div>
                 <h4 className="font-medium text-gray-900">{product.name}</h4>
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${
-                  product.category === 'Premium' 
-                    ? 'bg-purple-100 text-purple-800'
-                    : product.category === 'Bulk'
-                    ? 'bg-blue-100 text-blue-800'
-                    : product.category === 'Services'
-                    ? 'bg-green-100 text-green-800'
-                    : product.category === 'Accessories'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {product.category}
-                </span>
+                {product.description && (
+                  <p className="text-sm text-gray-600 mt-1">{product.description}</p>
+                )}
               </div>
               <div className="text-right">
                 <div className="font-medium text-gray-900">

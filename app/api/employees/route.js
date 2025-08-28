@@ -77,11 +77,15 @@ export async function POST(request) {
     const salary = parseFloat(data.salary) || 0;
     console.log('Parsed salary:', salary)
     
+    // Parse joining date
+    const joiningDate = data.joiningDate || new Date().toISOString().split('T')[0];
+    console.log('Joining date:', joiningDate)
+    
     const result = await query(
-      `INSERT INTO employees (name, cnic, phone, employee_type, monthly_salary, is_active, created_at, updated_at, tenant_id)
-       VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
-       RETURNING id, name, cnic, phone, employee_type, monthly_salary, is_active, created_at, updated_at`,
-      [data.name, formattedCnic || null, formattedPhone, employeeType, salary]
+      `INSERT INTO employees (name, cnic, phone, employee_type, monthly_salary, joining_date, is_active, created_at, updated_at, tenant_id)
+       VALUES ($1, $2, $3, $4, $5, $6, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
+       RETURNING id, name, cnic, phone, employee_type, monthly_salary, joining_date, is_active, created_at, updated_at`,
+      [data.name, formattedCnic || null, formattedPhone, employeeType, salary, joiningDate]
     )
     
     console.log('Employee created successfully:', result.rows[0])

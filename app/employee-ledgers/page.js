@@ -47,7 +47,7 @@ export default function EmployeeLedgersPage() {
       }
       
       const totalAdvances = employeeAdvances.reduce((sum, adv) => sum + parseFloat(adv.amount || 0), 0)
-      const salary = parseFloat(employee.monthlySalary || 0)
+      const salary = parseFloat(employee.salary || 0)  // Fixed: use 'salary' instead of 'monthlySalary'
       const remaining = salary - totalAdvances
 
       return {
@@ -70,7 +70,7 @@ export default function EmployeeLedgersPage() {
 
     const employeeAdvances = advances.filter(adv => adv.employeeName === employeeName)
     const totalAdvances = employeeAdvances.reduce((sum, adv) => sum + parseFloat(adv.amount || 0), 0)
-    const salary = parseFloat(employee.monthlySalary || 0)
+    const salary = parseFloat(employee.salary || 0)  // Fixed: use 'salary' instead of 'monthlySalary'
     const remaining = salary - totalAdvances
 
     // Create a printable window

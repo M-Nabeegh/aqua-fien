@@ -114,9 +114,34 @@ export default function RiderAccountabilityLedger() {
       group.activities.push(activity)
     })
 
-    // Process sell orders for the same rider-product combinations
+    // Process sell orders - filter them properly by date range and rider/product
     sellOrders.forEach(order => {
-      const key = `${order.salesman_id}-${order.product_id}`
+      const orderDate = new Date(order.billDate)
+      
+      // Apply date filtering if specified
+      let includeOrder = true
+      if (startDate) {
+        const start = new Date(startDate)
+        if (orderDate < start) includeOrder = false
+      }
+      if (endDate && includeOrder) {
+        const end = new Date(endDate)
+        if (orderDate > end) includeOrder = false
+      }
+      
+      // Apply rider filtering if specified
+      if (selectedRider && order.salesmanEmployeeId !== selectedRider) {
+        includeOrder = false
+      }
+      
+      // Apply product filtering if specified
+      if (selectedProduct && order.productId !== selectedProduct) {
+        includeOrder = false
+      }
+      
+      if (!includeOrder) return
+      
+      const key = `${order.salesmanEmployeeId}-${order.productId}`
       
       if (groupedData.has(key)) {
         const group = groupedData.get(key)

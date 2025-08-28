@@ -5,11 +5,7 @@ export default function ProductForm({ onSubmit, initialData = null, isEditing = 
   const [formData, setFormData] = useState({
     name: '',
     basePrice: '',
-    category: 'standard',
-    description: '',
-    unit: 'piece',
-    minPrice: '',
-    maxPrice: ''
+    description: ''
   })
   
   const [errors, setErrors] = useState({})
@@ -21,11 +17,7 @@ export default function ProductForm({ onSubmit, initialData = null, isEditing = 
       setFormData({
         name: initialData.name || '',
         basePrice: initialData.basePrice || '',
-        category: initialData.category || 'standard',
-        description: initialData.description || '',
-        unit: initialData.unit || 'piece',
-        minPrice: initialData.minPrice || '',
-        maxPrice: initialData.maxPrice || ''
+        description: initialData.description || ''
       })
     }
   }, [initialData])
@@ -39,23 +31,6 @@ export default function ProductForm({ onSubmit, initialData = null, isEditing = 
 
     if (!formData.basePrice || parseFloat(formData.basePrice) <= 0) {
       newErrors.basePrice = 'Base price must be greater than 0'
-    }
-
-    if (formData.minPrice && parseFloat(formData.minPrice) < 0) {
-      newErrors.minPrice = 'Minimum price cannot be negative'
-    }
-
-    if (formData.maxPrice && parseFloat(formData.maxPrice) < 0) {
-      newErrors.maxPrice = 'Maximum price cannot be negative'
-    }
-
-    if (formData.minPrice && formData.maxPrice && 
-        parseFloat(formData.minPrice) > parseFloat(formData.maxPrice)) {
-      newErrors.maxPrice = 'Maximum price must be greater than minimum price'
-    }
-
-    if (formData.minPrice && parseFloat(formData.minPrice) > parseFloat(formData.basePrice)) {
-      newErrors.minPrice = 'Minimum price cannot be greater than base price'
     }
 
     setErrors(newErrors)
@@ -110,20 +85,6 @@ export default function ProductForm({ onSubmit, initialData = null, isEditing = 
     }
   }
 
-  const categories = [
-    'standard',
-    'premium',
-    'other'
-  ]
-
-  const units = [
-    'piece',
-    'liter',
-    'gallon',
-    'bottle',
-    'case'
-  ]
-
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -176,75 +137,6 @@ export default function ProductForm({ onSubmit, initialData = null, isEditing = 
             />
             {errors.basePrice && <p className="text-red-500 text-sm mt-1">{errors.basePrice}</p>}
             <p className="text-gray-500 text-xs mt-1">This will be the default price for new customers</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Category
-            </label>
-            <select
-              value={formData.category}
-              onChange={(e) => handleInputChange('category', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Unit
-            </label>
-            <select
-              value={formData.unit}
-              onChange={(e) => handleInputChange('unit', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {units.map(unit => (
-                <option key={unit} value={unit}>{unit}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Price Range (Optional) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Minimum Price (PKR)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.minPrice}
-              onChange={(e) => handleInputChange('minPrice', e.target.value)}
-              placeholder="20.00"
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.minPrice ? 'border-red-500' : 'border-gray-300'
-              }`}
-            />
-            {errors.minPrice && <p className="text-red-500 text-sm mt-1">{errors.minPrice}</p>}
-            <p className="text-gray-500 text-xs mt-1">Optional: Set minimum allowed custom price</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Maximum Price (PKR)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.maxPrice}
-              onChange={(e) => handleInputChange('maxPrice', e.target.value)}
-              placeholder="50.00"
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.maxPrice ? 'border-red-500' : 'border-gray-300'
-              }`}
-            />
-            {errors.maxPrice && <p className="text-red-500 text-sm mt-1">{errors.maxPrice}</p>}
-            <p className="text-gray-500 text-xs mt-1">Optional: Set maximum allowed custom price</p>
           </div>
         </div>
 

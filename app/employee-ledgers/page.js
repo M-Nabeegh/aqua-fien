@@ -5,6 +5,7 @@ import Table from '../../components/Table'
 export default function EmployeeLedgersPage() {
   const [employees, setEmployees] = useState([])
   const [advances, setAdvances] = useState([])
+  const [salaryPayments, setSalaryPayments] = useState([]) // Add salary payments state
   const [selectedEmployeeType, setSelectedEmployeeType] = useState('')
   const [selectedEmployee, setSelectedEmployee] = useState('')
   const [dateFrom, setDateFrom] = useState('')
@@ -14,9 +15,10 @@ export default function EmployeeLedgersPage() {
   const employeeTypes = ['worker', 'manager', 'rider'] // Use lowercase to match database
 
   useEffect(() => {
-    // Fetch employees and advances
+    // Fetch employees, advances, and salary payments
     fetch('/api/employees').then(r => r.json()).then(setEmployees).catch(() => setEmployees([]))
     fetch('/api/employee-advances').then(r => r.json()).then(setAdvances).catch(() => setAdvances([]))
+    fetch('/api/salary-payments').then(r => r.json()).then(setSalaryPayments).catch(() => setSalaryPayments([]))
   }, [])
 
   const calculateLedger = useCallback(() => {
@@ -32,6 +34,7 @@ export default function EmployeeLedgersPage() {
     // Calculate ledger for each employee
     const ledger = filteredEmployees.map(employee => {
       let employeeAdvances = advances.filter(adv => adv.employeeName === employee.name)
+      let employeeSalaryPayments = salaryPayments.filter(payment => payment.employeeId === employee.id)
       
       // Filter advances by date range if specified
       if (dateFrom || dateTo) {
@@ -44,11 +47,25 @@ export default function EmployeeLedgersPage() {
           
           return true
         })
+        
+        // Filter salary payments by date range
+        employeeSalaryPayments = employeeSalaryPayments.filter(payment => {
+          if (!payment.paymentDate) return false
+          const paymentDate = new Date(payment.paymentDate)
+          
+          if (dateFrom && paymentDate < new Date(dateFrom)) return false
+          if (dateTo && paymentDate > new Date(dateTo)) return false
+          
+          return true
+        })
       }
       
       const totalAdvances = employeeAdvances.reduce((sum, adv) => sum + parseFloat(adv.amount || 0), 0)
-      const salary = parseFloat(employee.salary || 0)  // Fixed: use 'salary' instead of 'monthlySalary'
-      const remaining = salary - totalAdvances
+      const totalSalaryPayments = employeeSalaryPayments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0)
+      const salary = parseFloat(employee.salary || 0)  // Monthly salary
+      
+      // Calculate balance: Monthly Salary - (Advances + Salary Payments)
+      const remaining = salary - (totalAdvances + totalSalaryPayments)
 
       return {
         id: employee.id,
@@ -56,22 +73,25 @@ export default function EmployeeLedgersPage() {
         employeeType: employee.employeeType,
         salary: salary,
         totalAdvances: totalAdvances,
+        totalSalaryPayments: totalSalaryPayments,
         remaining: remaining,
         status: remaining >= 0 ? 'Positive' : 'Deficit'
       }
     })
 
     setLedgerData(ledger)
-  }, [employees, advances, selectedEmployeeType, dateFrom, dateTo])
+  }, [employees, advances, salaryPayments, selectedEmployeeType, dateFrom, dateTo]) // Add salaryPayments to dependencies
 
   const printSingleEmployeeLedger = (employeeName) => {
     const employee = employees.find(emp => emp.name === employeeName)
     if (!employee) return
 
     const employeeAdvances = advances.filter(adv => adv.employeeName === employeeName)
+    const employeeSalaryPayments = salaryPayments.filter(payment => payment.employeeId === employee.id)
     const totalAdvances = employeeAdvances.reduce((sum, adv) => sum + parseFloat(adv.amount || 0), 0)
-    const salary = parseFloat(employee.salary || 0)  // Fixed: use 'salary' instead of 'monthlySalary'
-    const remaining = salary - totalAdvances
+    const totalSalaryPayments = employeeSalaryPayments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0)
+    const salary = parseFloat(employee.salary || 0)
+    const remaining = salary - (totalAdvances + totalSalaryPayments)
 
     // Create a printable window
     const printWindow = window.open('', '_blank')
@@ -122,6 +142,30 @@ export default function EmployeeLedgersPage() {
                   <td>${adv.notes || adv.description || 'No description'}</td>
                 </tr>
               `).join('')}
+              ${employeeAdvances.length === 0 ? '<tr><td colspan="3">No advances taken</td></tr>' : ''}
+            </tbody>
+          </table>
+
+          <h3>Salary Payments</h3>
+          <table class="advances-table">
+            <thead>
+              <tr>
+                <th>Payment Date</th>
+                <th>Amount</th>
+                <th>Month/Year</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${employeeSalaryPayments.map(payment => `
+                <tr>
+                  <td>${new Date(payment.paymentDate).toLocaleDateString()}</td>
+                  <td>Rs. ${parseFloat(payment.amount).toFixed(2)}</td>
+                  <td>${new Date(payment.monthYear + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</td>
+                  <td>${payment.notes || 'No notes'}</td>
+                </tr>
+              `).join('')}
+              ${employeeSalaryPayments.length === 0 ? '<tr><td colspan="4">No salary payments made</td></tr>' : ''}
             </tbody>
           </table>
 
@@ -129,6 +173,7 @@ export default function EmployeeLedgersPage() {
             <h3>Summary</h3>
             <p><strong>Monthly Salary:</strong> Rs. ${salary.toFixed(2)}</p>
             <p><strong>Total Advances:</strong> Rs. ${totalAdvances.toFixed(2)}</p>
+            <p><strong>Total Salary Payments:</strong> Rs. ${totalSalaryPayments.toFixed(2)}</p>
             <p><strong>Remaining Amount:</strong> <span class="${remaining >= 0 ? 'positive' : 'deficit'}">Rs. ${remaining.toFixed(2)}</span></p>
           </div>
         </body>
@@ -229,11 +274,12 @@ export default function EmployeeLedgersPage() {
           <h3 className="font-semibold">Employee Ledger Summary</h3>
         </div>
         <Table
-          columns={['name', 'employeeType', 'salary', 'totalAdvances', 'remaining', 'status']}
+          columns={['name', 'employeeType', 'salary', 'totalAdvances', 'totalSalaryPayments', 'remaining', 'status']}
           data={ledgerData.map(item => ({
             ...item,
             salary: `Rs. ${item.salary.toFixed(2)}`,
             totalAdvances: `Rs. ${item.totalAdvances.toFixed(2)}`,
+            totalSalaryPayments: `Rs. ${item.totalSalaryPayments.toFixed(2)}`,
             remaining: `Rs. ${item.remaining.toFixed(2)}`,
           }))}
         />

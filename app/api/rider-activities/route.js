@@ -1,67 +1,50 @@
 import { NextResponse } from 'next/server'
 import { query } from '../../../lib/db'
 
-// Function to calculate rider accountability for a specific product
-async function calculateRiderAccountability(riderId, productId) {
-  try {
-    // Get total filled bottles sent for this rider and product from rider_activities
-    const filledBottlesSentResult = await query(`
-      SELECT COALESCE(SUM(filled_bottles_sent), 0) as total_sent
-      FROM rider_activities 
-      WHERE employee_id = $1 AND product_id = $2 AND is_active = true
-    `, [riderId, productId])
-    
-    const totalFilledBottlesSent = parseInt(filledBottlesSentResult.rows[0].total_sent) || 0
-    
-    // Get total bottles sold by this rider for this product from sell_orders
-    const bottlesSoldResult = await query(`
-      SELECT COALESCE(SUM(quantity), 0) as total_sold
-      FROM sell_orders 
-      WHERE salesman_employee_id = $1 AND product_id = $2 AND is_active = true
-    `, [riderId, productId])
-    
-    const totalBottlesSold = parseInt(bottlesSoldResult.rows[0].total_sold) || 0
-    
-    // Calculate accountability: filled bottles sent - bottles sold = bottles remaining with rider
-    const bottlesRemaining = totalFilledBottlesSent - totalBottlesSold
-    
-    return {
-      riderId,
-      productId,
-      totalFilledBottlesSent,
-      totalBottlesSold,
-      bottlesRemaining,
-      accountabilityStatus: bottlesRemaining === 0 ? 'Clear' : bottlesRemaining > 0 ? 'Has Stock' : 'Deficit'
-    }
-  } catch (error) {
-    console.error('Error calculating rider accountability:', error)
-    throw error
-  }
-}
-
-// GET all rider activities
+// GET all rider activities with enhanced filtering
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
-    const calculateAccountability = searchParams.get('accountability') === 'true'
     const riderId = searchParams.get('riderId')
     const productId = searchParams.get('productId')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
     
-    // If accountability calculation is requested
-    if (calculateAccountability && riderId && productId) {
-      const accountability = await calculateRiderAccountability(riderId, productId)
-      return NextResponse.json(accountability)
+    let whereConditions = ['ra.is_active = true']
+    let queryParams = []
+    
+    // Add filters
+    if (riderId) {
+      whereConditions.push(`ra.employee_id = $${queryParams.length + 1}`)
+      queryParams.push(parseInt(riderId))
     }
     
-    // Default: Get all rider activities
+    if (productId) {
+      whereConditions.push(`ra.product_id = $${queryParams.length + 1}`)
+      queryParams.push(parseInt(productId))
+    }
+    
+    if (startDate) {
+      whereConditions.push(`ra.activity_date >= $${queryParams.length + 1}`)
+      queryParams.push(startDate)
+    }
+    
+    if (endDate) {
+      whereConditions.push(`ra.activity_date <= $${queryParams.length + 1}`)
+      queryParams.push(endDate)
+    }
+    
+    const whereClause = whereConditions.join(' AND ')
+    
     const result = await query(`
       SELECT 
         ra.id,
         ra.activity_date as date,
-        ra.employee_id as "employeeId",
+        ra.employee_id,
         e.name as "salesmanRepresentative",
-        ra.product_id as "productId",
+        ra.product_id,
         p.name as "productName",
+        p.category as "productCategory",
         ra.empty_bottles_received as "emptyBottlesReceived",
         ra.filled_bottles_sent as "filledBottlesSent", 
         ra.filled_product_bought_back as "filledProductBoughtBack",
@@ -69,10 +52,10 @@ export async function GET(request) {
         ra.created_at as "createdAt"
       FROM rider_activities ra
       JOIN employees e ON ra.employee_id = e.id
-      LEFT JOIN products p ON ra.product_id = p.id
-      WHERE ra.is_active = true 
+      JOIN products p ON ra.product_id = p.id
+      WHERE ${whereClause}
       ORDER BY ra.activity_date DESC, ra.created_at DESC
-    `)
+    `, queryParams)
     
     return NextResponse.json(result.rows)
   } catch (error) {
@@ -87,74 +70,72 @@ export async function POST(request) {
     const body = await request.json()
     
     // Validate required fields
-    const { date, employeeId, productId, salesmanRepresentative, emptyBottlesReceived, filledBottlesSent, filledProductBoughtBack } = body
+    const { employeeId, productId, activityDate, emptyBottlesReceived, filledBottlesSent, filledProductBoughtBack } = body
     
-    if (!date || (!employeeId && !salesmanRepresentative) || !productId || emptyBottlesReceived === undefined || filledBottlesSent === undefined || filledProductBoughtBack === undefined) {
-      return NextResponse.json({ error: 'Missing required fields including product selection' }, { status: 400 })
+    if (!employeeId || !productId || !activityDate) {
+      return NextResponse.json({ 
+        error: 'Missing required fields: employeeId, productId, and activityDate are required' 
+      }, { status: 400 })
     }
 
-    let finalEmployeeId = employeeId
-    
-    // If employeeId not provided but salesmanRepresentative name is, find the employee
-    if (!employeeId && salesmanRepresentative) {
-      const employeeResult = await query(
-        'SELECT id FROM employees WHERE name = $1 AND is_active = true',
-        [salesmanRepresentative]
-      )
-      
-      if (employeeResult.rowCount === 0) {
-        return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
-      }
-      
-      finalEmployeeId = employeeResult.rows[0].id
-    }
-
-    // Validate employee exists
+    // Validate employee exists and is active
     const employeeCheck = await query(
-      'SELECT id, name FROM employees WHERE id = $1 AND is_active = true',
-      [parseInt(finalEmployeeId)]
+      'SELECT id, name, employee_type FROM employees WHERE id = $1 AND is_active = true',
+      [parseInt(employeeId)]
     )
     
     if (employeeCheck.rowCount === 0) {
-      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Employee not found or inactive' }, { status: 404 })
+    }
+
+    // Validate product exists and is active
+    const productCheck = await query(
+      'SELECT id, name, category FROM products WHERE id = $1 AND is_active = true',
+      [parseInt(productId)]
+    )
+    
+    if (productCheck.rowCount === 0) {
+      return NextResponse.json({ error: 'Product not found or inactive' }, { status: 404 })
     }
 
     // Create new rider activity
     const result = await query(
-      `INSERT INTO rider_activities (employee_id, product_id, activity_date, empty_bottles_received, 
-                                     filled_bottles_sent, filled_product_bought_back, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, activity_date as date, empty_bottles_received as "emptyBottlesReceived",
-                 filled_bottles_sent as "filledBottlesSent", 
-                 filled_product_bought_back as "filledProductBoughtBack",
-                 notes, created_at as "createdAt"`,
+      `INSERT INTO rider_activities (
+        employee_id, 
+        product_id, 
+        activity_date, 
+        empty_bottles_received, 
+        filled_bottles_sent, 
+        filled_product_bought_back, 
+        notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING 
+        id,
+        activity_date as date,
+        employee_id,
+        product_id,
+        empty_bottles_received as "emptyBottlesReceived",
+        filled_bottles_sent as "filledBottlesSent", 
+        filled_product_bought_back as "filledProductBoughtBack",
+        notes,
+        created_at as "createdAt"`,
       [
-        parseInt(finalEmployeeId),
+        parseInt(employeeId),
         parseInt(productId),
-        new Date(date),
-        parseInt(emptyBottlesReceived) || 0,
-        parseInt(filledBottlesSent) || 0,
-        parseInt(filledProductBoughtBack) || 0,
-        body.notes || ''
+        new Date(activityDate),
+        parseInt(emptyBottlesReceived || 0),
+        parseInt(filledBottlesSent || 0),
+        parseInt(filledProductBoughtBack || 0),
+        body.notes || null
       ]
     )
 
-    // Return complete data with employee name and accountability
+    // Return complete data with employee and product details
     const responseData = {
       ...result.rows[0],
       salesmanRepresentative: employeeCheck.rows[0].name,
-      employeeId: finalEmployeeId,
-      productId: parseInt(productId)
-    }
-    
-    // Calculate and include accountability information
-    try {
-      const accountability = await calculateRiderAccountability(finalEmployeeId, productId)
-      responseData.accountability = accountability
-    } catch (accountabilityError) {
-      console.error('Error calculating accountability:', accountabilityError)
-      // Don't fail the whole request if accountability calculation fails
-      responseData.accountability = { error: 'Failed to calculate accountability' }
+      productName: productCheck.rows[0].name,
+      productCategory: productCheck.rows[0].category
     }
     
     return NextResponse.json(responseData, { status: 201 })

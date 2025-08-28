@@ -8,7 +8,8 @@ export default function ExpenditureLedgersPage() {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
 
-  const categories = ['Transportation', 'Administrative', 'Maintenance', 'Utilities', 'Marketing', 'Other']
+  // Updated categories to match the database enum values
+  const categories = ['transportation', 'administrative', 'maintenance', 'utilities', 'other']
 
   useEffect(() => {
     fetch('/api/expenditures').then(r => r.json()).then(setExpenditures).catch(() => setExpenditures([]))
@@ -128,7 +129,9 @@ export default function ExpenditureLedgersPage() {
             >
               <option value="">All Categories</option>
               {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
+                <option key={category} value={category}>
+                  {category.charAt(0).toUpperCase() + category.slice(1)}
+                </option>
               ))}
             </select>
           </div>

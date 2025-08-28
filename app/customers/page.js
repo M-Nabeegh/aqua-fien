@@ -195,18 +195,15 @@ export default function CustomersPage() {
 
   const handleEditCustomer = async (customer) => {
     try {
-      // Fetch customer's custom pricing
-      const pricingResponse = await fetch(`/api/customers/${customer.id}`)
-      const customerData = await pricingResponse.json()
-      
       // Fetch existing custom pricing for this customer
       const existingPricing = {}
       for (const product of products) {
         try {
           const response = await fetch(`/api/pricing?customerId=${customer.id}&productId=${product.id}`)
           const pricingData = await response.json()
-          if (pricingData.customPrice) {
-            existingPricing[product.id] = pricingData.customPrice
+          // Only include if it's a custom price (not base price)
+          if (pricingData.priceType === 'custom') {
+            existingPricing[product.id] = pricingData.effectivePrice
           }
         } catch (error) {
           console.log(`No custom pricing found for product ${product.id}`)
@@ -347,7 +344,7 @@ export default function CustomersPage() {
                       ❌ Cancel Edit
                     </button>
                   )}
-                  {products.length > 1 && (
+                  {products.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setShowAdvancedPricing(!showAdvancedPricing)}
@@ -373,7 +370,7 @@ export default function CustomersPage() {
               />
 
               {/* Advanced Product Pricing */}
-              {(showAdvancedPricing || products.length > 1) && products.length > 0 && (
+              {showAdvancedPricing && products.length > 0 && (
                 <div className="mt-8 pt-6 border-t border-gray-200">
                   <CustomerPricing
                     products={products}

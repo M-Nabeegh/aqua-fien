@@ -10,6 +10,8 @@ export default function SellOrderPage() {
   const [products, setProducts] = useState([])
   const [salesEmployees, setSalesEmployees] = useState([])
   const [selectedCustomer, setSelectedCustomer] = useState(null)
+  const [currentBottleCost, setCurrentBottleCost] = useState(0)
+  const [selectedProduct, setSelectedProduct] = useState(null)
 
   useEffect(() => {
     // Fetch sell orders
@@ -27,6 +29,39 @@ export default function SellOrderPage() {
     }).catch(() => setSalesEmployees([]))
   }, [])
 
+  // Function to get customer-specific pricing
+  const getCustomerProductPrice = async (customerId, productId) => {
+    try {
+      if (!customerId || !productId) return 0
+      
+      // Check for custom pricing using query parameters
+      const customPricingResponse = await fetch(`/api/customer-pricing?customerId=${customerId}&productId=${productId}`)
+      if (customPricingResponse.ok) {
+        const customPricing = await customPricingResponse.json()
+        if (customPricing.length > 0) {
+          return parseFloat(customPricing[0].customPrice)
+        }
+      }
+      
+      // If no custom pricing, get base price from product
+      const product = products.find(p => p.id === productId)
+      return product ? parseFloat(product.basePrice) : 0
+    } catch (error) {
+      console.error('Error fetching customer product price:', error)
+      return 0
+    }
+  }
+
+  // Update bottle cost when customer or product changes
+  const updateBottleCost = async (customer, product) => {
+    if (customer && product) {
+      const price = await getCustomerProductPrice(customer.id, product.id)
+      setCurrentBottleCost(price)
+    } else {
+      setCurrentBottleCost(0)
+    }
+  }
+
   const addSellOrder = async (data) => {
     try {
       if (!selectedCustomer) {
@@ -34,36 +69,35 @@ export default function SellOrderPage() {
         return
       }
 
-      // Find product and salesman IDs from names
-      const selectedProduct = products.find(p => p.name === data.productName)
+      if (!selectedProduct) {
+        alert('Please select a product first')
+        return
+      }
+
+      // Find salesman ID from name
       const selectedSalesman = salesEmployees.find(emp => emp.name === data.salesmanAppointed)
 
       console.log('Data transformation:', {
         selectedCustomer: { id: selectedCustomer.id, name: selectedCustomer.name },
-        productName: data.productName,
-        selectedProduct: selectedProduct ? { id: selectedProduct.id, name: selectedProduct.name } : null,
+        selectedProduct: { id: selectedProduct.id, name: selectedProduct.name },
+        currentBottleCost: currentBottleCost,
         salesmanAppointed: data.salesmanAppointed,
         selectedSalesman: selectedSalesman ? { id: selectedSalesman.id, name: selectedSalesman.name } : null
       });
-
-      if (!selectedProduct) {
-        alert('Selected product not found')
-        return
-      }
 
       if (!selectedSalesman) {
         alert('Selected salesman not found')
         return
       }
 
-      // Calculate total amount - this will be recalculated by the API with correct pricing
+      // Calculate total amount
       const quantity = parseInt(data.quantity || 0)
 
       const sellOrderData = { 
         customerId: selectedCustomer.id,
         productId: selectedProduct.id,
         quantity: quantity,
-        // Remove bottleCost - API will determine the correct price automatically
+        // API will determine the correct price automatically
         billDate: data.billDate,
         salesmanId: selectedSalesman ? selectedSalesman.id : null,
         salesmanAppointed: data.salesmanAppointed || 'Unassigned'
@@ -92,6 +126,8 @@ export default function SellOrderPage() {
       
       // Reset selected customer and show success message
       setSelectedCustomer(null)
+      setSelectedProduct(null)
+      setCurrentBottleCost(0)
       alert('Sell order added successfully!')
     } catch (error) {
       console.error('Error creating sell order:', error)
@@ -101,14 +137,6 @@ export default function SellOrderPage() {
 
   // Field configuration for the form
   const fieldConfig = {
-    productName: { type: 'select', label: 'Product Name' },
-    bottleCost: { 
-      type: 'number', 
-      label: 'Bottle Cost (PKR)', 
-      placeholder: 'Auto-filled from customer pricing',
-      readOnly: true,
-      helperText: 'This price is automatically determined based on customer-specific pricing or product base price.'
-    },
     quantity: { type: 'number', label: 'Quantity', placeholder: 'Enter quantity' },
     billDate: { type: 'date', label: 'Bill Date' },
     salesmanAppointed: { type: 'select', label: 'Salesman Appointed' }
@@ -126,17 +154,66 @@ export default function SellOrderPage() {
           <SearchableCustomerSelect
             customers={customers}
             selectedCustomer={selectedCustomer}
-            onCustomerSelect={setSelectedCustomer}
+            onCustomerSelect={async (customer) => {
+              setSelectedCustomer(customer)
+              await updateBottleCost(customer, selectedProduct)
+            }}
             placeholder="Search and select a customer..."
             label="Select Customer"
             required={true}
           />
         </div>
 
+        {/* Product Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Product *
+          </label>
+          <select
+            value={selectedProduct ? selectedProduct.id : ''}
+            onChange={async (e) => {
+              const product = products.find(p => p.id === e.target.value)
+              setSelectedProduct(product)
+              await updateBottleCost(selectedCustomer, product)
+            }}
+            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            <option value="">Choose a product...</option>
+            {products.map(product => (
+              <option key={product.id} value={product.id}>
+                {product.name} (Base: PKR {product.basePrice})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Price Display */}
+        {selectedCustomer && selectedProduct && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="font-medium text-blue-900 mb-2">Pricing Information</h4>
+            <div className="text-sm text-blue-800">
+              <p><strong>Customer:</strong> {selectedCustomer.name}</p>
+              <p><strong>Product:</strong> {selectedProduct.name}</p>
+              <p><strong>Price per bottle:</strong> PKR {currentBottleCost.toFixed(2)} 
+                {currentBottleCost !== parseFloat(selectedProduct.basePrice) ? (
+                  <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
+                    Custom Pricing (Base: PKR {selectedProduct.basePrice})
+                  </span>
+                ) : (
+                  <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">
+                    Base Price
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Sell Order Form */}
         <Form 
-          title="Add Sell Order" 
-          fields={['productName', 'bottleCost', 'quantity', 'billDate', 'salesmanAppointed']} 
+          title="Order Details" 
+          fields={['quantity', 'billDate', 'salesmanAppointed']} 
           fieldConfig={fieldConfig}
           onSubmit={addSellOrder}
           customers={customers}

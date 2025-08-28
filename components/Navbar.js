@@ -148,25 +148,18 @@ export default function Navbar() {
             {isRiderDropdownOpen && (
               <div className="absolute top-full left-0 mt-2 bg-white text-gray-800 rounded-lg shadow-xl min-w-56 z-50 border border-gray-200">
                 <Link 
-                  href="/rider-inout" 
-                  className="block px-4 py-3 hover:bg-blue-50 transition-colors"
+                  href="/rider-activities" 
+                  className="block px-4 py-3 hover:bg-blue-50 transition-colors rounded-t-lg"
                   onClick={() => setIsRiderDropdownOpen(false)}
                 >
-                  📦 Add Rider Activity
+                  📦 Rider Activities
                 </Link>
                 <Link 
-                  href="/rider-ledgers" 
-                  className="block px-4 py-3 hover:bg-blue-50 transition-colors"
+                  href="/rider-accountability-ledger" 
+                  className="block px-4 py-3 hover:bg-blue-50 transition-colors rounded-b-lg"
                   onClick={() => setIsRiderDropdownOpen(false)}
                 >
-                  📊 Rider Ledgers
-                </Link>
-                <Link 
-                  href="/accountability" 
-                  className="block px-4 py-3 hover:bg-blue-50 rounded-b-lg transition-colors"
-                  onClick={() => setIsRiderDropdownOpen(false)}
-                >
-                  🧮 Rider Accountability
+                  📊 Accountability Ledger
                 </Link>
               </div>
             )}

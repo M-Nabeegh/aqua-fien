@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 export default function RiderAccountabilityLedger() {
   const [ledgerData, setLedgerData] = useState([])
@@ -24,7 +24,7 @@ export default function RiderAccountabilityLedger() {
     if (riders.length && products.length) {
       fetchLedgerData()
     }
-  }, [selectedRider, selectedProduct, startDate, endDate])
+  }, [selectedRider, selectedProduct, startDate, endDate, fetchLedgerData, riders.length, products.length])
 
   const fetchInitialData = async () => {
     try {
@@ -48,7 +48,7 @@ export default function RiderAccountabilityLedger() {
     }
   }
 
-  const fetchLedgerData = async () => {
+  const fetchLedgerData = useCallback(async () => {
     setLoading(true)
     try {
       // Build query params
@@ -83,7 +83,7 @@ export default function RiderAccountabilityLedger() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedRider, selectedProduct, startDate, endDate])
 
   const calculateAccountability = (activities, sellOrders) => {
     // Group data by rider and product

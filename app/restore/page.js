@@ -242,7 +242,7 @@ export default function RestorePage() {
             <ol className="list-decimal list-inside space-y-2 text-blue-800">
               <li>Download a current backup first (as a safety measure)</li>
               <li>Select your JSON backup file using the file input above</li>
-              <li>Click "Restore Database" to start the restoration process</li>
+              <li>Click &quot;Restore Database&quot; to start the restoration process</li>
               <li>The system will update existing records and add new ones</li>
               <li>Check the results table for any errors or conflicts</li>
             </ol>

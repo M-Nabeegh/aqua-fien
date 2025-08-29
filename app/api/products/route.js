@@ -27,14 +27,13 @@ export async function POST(request) {
     }
     
     const result = await query(
-      `INSERT INTO products (name, base_price, description, is_active, created_at, updated_at, tenant_id)
-       VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
-       RETURNING id, name, base_price as "basePrice", description, 
+      `INSERT INTO products (name, base_price, is_active, created_at, updated_at, tenant_id)
+       VALUES ($1, $2, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
+       RETURNING id, name, base_price as "basePrice", 
                  is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"`,
       [
         data.name,
-        parseFloat(data.basePrice),
-        data.description || null
+        parseFloat(data.basePrice)
       ]
     );
     

@@ -85,10 +85,10 @@ export async function PUT(request, { params }) {
     const result = await query(
       `UPDATE employees 
        SET name = $1, cnic = $2, phone = $3, employee_type = $4, monthly_salary = $5, 
-           joining_date = $6, address = $7, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $8 AND deleted_at IS NULL
-       RETURNING id, name, cnic, phone, employee_type, monthly_salary, joining_date, address, is_active, created_at, updated_at`,
-      [data.name, formattedCnic || null, formattedPhone, employeeType, salary, joiningDate, data.address || null, id]
+           joining_date = $6, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7 AND deleted_at IS NULL
+       RETURNING id, name, cnic, phone, employee_type, monthly_salary, joining_date, is_active, created_at, updated_at`,
+      [data.name, formattedCnic || null, formattedPhone, employeeType, salary, joiningDate, id]
     )
     
     if (result.rows.length === 0) {

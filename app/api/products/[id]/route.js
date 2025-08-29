@@ -13,14 +13,13 @@ export async function PUT(request, { params }) {
     
     const result = await query(
       `UPDATE products 
-       SET name = $1, base_price = $2, description = $3, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4 AND is_active = true
-       RETURNING id, name, base_price as "basePrice", description, 
+       SET name = $1, base_price = $2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3 AND is_active = true
+       RETURNING id, name, base_price as "basePrice", 
                  is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"`,
       [
         data.name,
         parseFloat(data.basePrice),
-        data.description || null,
         parseInt(id)
       ]
     );
@@ -67,7 +66,7 @@ export async function GET(request, { params }) {
     const { id } = params;
     
     const result = await query(
-      `SELECT id, name, base_price as "basePrice", description,
+      `SELECT id, name, base_price as "basePrice",
               is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
        FROM products WHERE id = $1 AND is_active = true`,
       [parseInt(id)]

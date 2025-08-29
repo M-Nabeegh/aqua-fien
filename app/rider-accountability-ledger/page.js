@@ -16,16 +16,6 @@ export default function RiderAccountabilityLedger() {
   // Summary stats
   const [summary, setSummary] = useState({})
 
-  useEffect(() => {
-    fetchInitialData()
-  }, [])
-
-  useEffect(() => {
-    if (riders.length && products.length) {
-      fetchLedgerData()
-    }
-  }, [selectedRider, selectedProduct, startDate, endDate, fetchLedgerData, riders.length, products.length])
-
   const fetchInitialData = async () => {
     try {
       const [ridersRes, productsRes] = await Promise.all([
@@ -205,6 +195,16 @@ export default function RiderAccountabilityLedger() {
     setStartDate('')
     setEndDate('')
   }
+
+  useEffect(() => {
+    fetchInitialData()
+  }, [])
+
+  useEffect(() => {
+    if (riders.length && products.length) {
+      fetchLedgerData()
+    }
+  }, [selectedRider, selectedProduct, startDate, endDate, fetchLedgerData, riders.length, products.length])
 
   return (
     <div className="space-y-8">

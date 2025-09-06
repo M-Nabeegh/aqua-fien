@@ -86,11 +86,12 @@ export async function PUT(request, { params }) {
         address = $4, 
         joining_date = $5, 
         opening_bottles = $6,
+        security_deposit = $7,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $7 AND is_active = true
+      WHERE id = $8 AND is_active = true
       RETURNING 
         id, name, cnic, phone, address, joining_date, 
-        opening_bottles, is_active, created_at, updated_at`,
+        opening_bottles, security_deposit, is_active, created_at, updated_at`,
       [
         data.name, 
         data.cnic || null,
@@ -98,6 +99,7 @@ export async function PUT(request, { params }) {
         data.address || '', 
         data.joiningDate || existingCustomer.rows[0].joining_date, 
         parseInt(data.openingBottles) || 0,
+        parseFloat(data.securityDeposit) || 0,
         id
       ]
     )

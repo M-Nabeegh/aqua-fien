@@ -7,26 +7,50 @@ export default function CustomerLedgersPage() {
   const [customers, setCustomers] = useState([])
   const [advances, setAdvances] = useState([])
   const [sellOrders, setSellOrders] = useState([])
+  const [products, setProducts] = useState([])
   const [selectedCustomer, setSelectedCustomer] = useState('')
   const [selectedCustomerForInvoice, setSelectedCustomerForInvoice] = useState('')
   const [selectedCustomerObj, setSelectedCustomerObj] = useState(null)
   const [selectedCustomerObjForInvoice, setSelectedCustomerObjForInvoice] = useState(null)
+  const [selectedProductForInvoice, setSelectedProductForInvoice] = useState(null)
   const [ledgerData, setLedgerData] = useState([])
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)) // YYYY-MM format
 
   useEffect(() => {
-    // Fetch customers, advances, and sell orders
-    fetch('/api/customers').then(r => r.json()).then(setCustomers).catch(() => setCustomers([]))
-    fetch('/api/customer-advances').then(r => r.json()).then(setAdvances).catch(() => setAdvances([]))
-    fetch('/api/sell-orders').then(r => r.json()).then(setSellOrders).catch(() => setSellOrders([]))
+    // Fetch customers, advances, sell orders, and products with proper error handling
+    fetch('/api/customers')
+      .then(r => r.json())
+      .then(data => setCustomers(Array.isArray(data) ? data : []))
+      .catch(console.error)
+    
+    fetch('/api/customer-advances')
+      .then(r => r.json())
+      .then(data => setAdvances(Array.isArray(data) ? data : []))
+      .catch(console.error)
+    
+    fetch('/api/sell-orders')
+      .then(r => r.json())
+      .then(data => setSellOrders(Array.isArray(data) ? data : []))
+      .catch(console.error)
+    
+    fetch('/api/products')
+      .then(r => r.json())
+      .then(data => setProducts(Array.isArray(data) ? data : []))
+      .catch(console.error)
   }, [])
 
   const calculateLedger = useCallback(() => {
+    // Ensure all data is arrays before processing
+    const customersArray = Array.isArray(customers) ? customers : []
+    const advancesArray = Array.isArray(advances) ? advances : []
+    const sellOrdersArray = Array.isArray(sellOrders) ? sellOrders : []
+    
     // Calculate ledger for each customer
-    const ledger = customers.map(customer => {
-      const customerAdvances = advances.filter(adv => adv.customerName === customer.name)
-      const customerSales = sellOrders.filter(order => order.customerName === customer.name)
+    const ledger = customersArray.map(customer => {
+      const customerAdvances = advancesArray.filter(adv => adv.customerName === customer.name)
+      const customerSales = sellOrdersArray.filter(order => order.customerName === customer.name)
       
       const totalAdvances = customerAdvances.reduce((sum, adv) => sum + parseFloat(adv.amount || 0), 0)
       const totalSales = customerSales.reduce((sum, order) => sum + parseFloat(order.totalAmount || 0), 0)
@@ -50,8 +74,12 @@ export default function CustomerLedgersPage() {
     const customer = customers.find(cust => cust.name === customerName)
     if (!customer) return
 
-    const customerAdvances = advances.filter(adv => adv.customerName === customerName)
-    const customerSales = sellOrders.filter(order => order.customerName === customerName)
+    // Ensure arrays exist before filtering
+    const advancesArray = Array.isArray(advances) ? advances : []
+    const sellOrdersArray = Array.isArray(sellOrders) ? sellOrders : []
+    
+    const customerAdvances = advancesArray.filter(adv => adv.customerName === customerName)
+    const customerSales = sellOrdersArray.filter(order => order.customerName === customerName)
     const totalAdvances = customerAdvances.reduce((sum, adv) => sum + parseFloat(adv.amount || 0), 0)
     const totalSales = customerSales.reduce((sum, sale) => sum + parseFloat(sale.totalAmount || 0), 0)
     const remaining = totalAdvances - totalSales
@@ -151,7 +179,8 @@ export default function CustomerLedgersPage() {
     }
 
     const customer = customers.find(cust => cust.name === selectedCustomerObjForInvoice.name)
-    const customerSales = sellOrders.filter(order => 
+    const sellOrdersArray = Array.isArray(sellOrders) ? sellOrders : []
+    const customerSales = sellOrdersArray.filter(order => 
       order.customerName === selectedCustomerObjForInvoice.name &&
       order.billDate >= fromDate &&
       order.billDate <= toDate
@@ -260,6 +289,206 @@ export default function CustomerLedgersPage() {
     printWindow.print()
   }
 
+  const printDailyBottleTrackingInvoice = async () => {
+    if (!selectedCustomerObjForInvoice || !selectedProductForInvoice || !selectedMonth) {
+      alert('Please select customer, product, and month')
+      return
+    }
+
+    try {
+      // Get the customer product bottle balance
+      const bottleBalanceResponse = await fetch(`/api/customer-bottle-balance?customerId=${selectedCustomerObjForInvoice.id}&productId=${selectedProductForInvoice.id}`)
+      const bottleBalanceData = await bottleBalanceResponse.json()
+      const bottleBalance = bottleBalanceData[0] || { openingBottles: 0, totalDelivered: 0, totalEmptyCollected: 0, currentBottleBalance: 0 }
+
+      // Get sell orders for the selected month
+      const year = parseInt(selectedMonth.split('-')[0])
+      const month = parseInt(selectedMonth.split('-')[1])
+      const monthStart = new Date(year, month - 1, 1)
+      const monthEnd = new Date(year, month, 0) // Last day of the month
+      
+      const sellOrdersArray = Array.isArray(sellOrders) ? sellOrders : []
+      const monthlyOrders = sellOrdersArray.filter(order => {
+        const orderDate = new Date(order.billDate)
+        return order.customerName === selectedCustomerObjForInvoice.name &&
+               order.productName === selectedProductForInvoice.name &&
+               orderDate >= monthStart && orderDate <= monthEnd
+      })
+
+      // Get opening balance for the month (opening bottles + deliveries before this month - collections before this month)
+      const ordersBeforeMonth = sellOrdersArray.filter(order => {
+        const orderDate = new Date(order.billDate)
+        return order.customerName === selectedCustomerObjForInvoice.name &&
+               order.productName === selectedProductForInvoice.name &&
+               orderDate < monthStart
+      })
+
+      const deliveredBeforeMonth = ordersBeforeMonth.reduce((sum, order) => sum + parseInt(order.quantity || 0), 0)
+      const collectedBeforeMonth = ordersBeforeMonth.reduce((sum, order) => sum + parseInt(order.emptyBottlesCollected || 0), 0)
+      const openingBalanceForMonth = bottleBalance.openingBottles + deliveredBeforeMonth - collectedBeforeMonth
+
+      // Create daily breakdown
+      const daysInMonth = monthEnd.getDate()
+      const dailyData = []
+      let runningBalance = openingBalanceForMonth
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const currentDate = new Date(year, month - 1, day)
+        
+        // Find orders for this specific day
+        const dayOrders = monthlyOrders.filter(order => {
+          const orderDate = new Date(order.billDate)
+          return orderDate.getDate() === day
+        })
+
+        const delivered = dayOrders.reduce((sum, order) => sum + parseInt(order.quantity || 0), 0)
+        const collected = dayOrders.reduce((sum, order) => sum + parseInt(order.emptyBottlesCollected || 0), 0)
+        const amount = dayOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount || 0), 0)
+
+        // Update running balance
+        runningBalance = runningBalance + delivered - collected
+
+        dailyData.push({
+          day,
+          date: currentDate.toLocaleDateString(),
+          delivered,
+          collected,
+          balance: runningBalance,
+          amount: amount.toFixed(2)
+        })
+      }
+
+      const totalDelivered = dailyData.reduce((sum, day) => sum + day.delivered, 0)
+      const totalCollected = dailyData.reduce((sum, day) => sum + day.collected, 0)
+      const totalAmount = dailyData.reduce((sum, day) => sum + parseFloat(day.amount), 0)
+
+      // Create printable invoice
+      const printWindow = window.open('', '_blank')
+      
+      // Check if window was created successfully
+      if (!printWindow || !printWindow.document) {
+        alert('Pop-up blocked! Please allow pop-ups for this site and try again.')
+        return
+      }
+      
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Daily Bottle Tracking - ${selectedCustomerObjForInvoice.name}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 15px; font-size: 12px; }
+              .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+              .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+              .tracking-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+              .tracking-table th, .tracking-table td { border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 11px; }
+              .tracking-table th { background-color: #f2f2f2; font-weight: bold; }
+              .summary { background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px; }
+              .highlight { background-color: #e7f3ff; font-weight: bold; }
+              .weekend { background-color: #fff2e6; }
+              .has-activity { background-color: #e8f5e8; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>🍾 DAILY BOTTLE TRACKING INVOICE</h1>
+              <h2>AquaFine Water Supply</h2>
+              <p>Month: ${new Date(year, month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+            </div>
+            
+            <div class="info-grid">
+              <div>
+                <h3>📋 Customer Details</h3>
+                <p><strong>Name:</strong> ${selectedCustomerObjForInvoice.name}</p>
+                <p><strong>Product:</strong> ${selectedProductForInvoice.name}</p>
+                <p><strong>Opening Balance:</strong> ${openingBalanceForMonth} bottles</p>
+              </div>
+              <div>
+                <h3>📊 Monthly Summary</h3>
+                <p><strong>Total Delivered:</strong> ${totalDelivered} bottles</p>
+                <p><strong>Total Collected:</strong> ${totalCollected} bottles</p>
+                <p><strong>Net Change:</strong> ${totalDelivered - totalCollected} bottles</p>
+                <p><strong>Total Amount:</strong> Rs. ${totalAmount.toFixed(2)}</p>
+              </div>
+            </div>
+
+            <h3>📅 Daily Breakdown</h3>
+            <table class="tracking-table">
+              <thead>
+                <tr>
+                  <th rowspan="2">Day</th>
+                  <th rowspan="2">Date</th>
+                  <th colspan="2">🍾 Bottles</th>
+                  <th rowspan="2">Balance</th>
+                  <th rowspan="2">Amount (Rs.)</th>
+                </tr>
+                <tr>
+                  <th>Delivered</th>
+                  <th>Collected</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${dailyData.map(day => {
+                  const dayOfWeek = new Date(year, month - 1, day.day).getDay()
+                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+                  const hasActivity = day.delivered > 0 || day.collected > 0 || day.amount > 0
+                  const rowClass = hasActivity ? 'has-activity' : (isWeekend ? 'weekend' : '')
+                  
+                  return `
+                    <tr class="${rowClass}">
+                      <td><strong>${day.day}</strong></td>
+                      <td>${day.date}</td>
+                      <td>${day.delivered > 0 ? day.delivered : '-'}</td>
+                      <td>${day.collected > 0 ? day.collected : '-'}</td>
+                      <td><strong>${day.balance}</strong></td>
+                      <td>${day.amount > 0 ? day.amount : '-'}</td>
+                    </tr>
+                  `
+                }).join('')}
+              </tbody>
+            </table>
+
+            <div class="summary">
+              <h3>💰 Invoice Summary</h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                  <p><strong>Opening Balance:</strong> ${openingBalanceForMonth} bottles</p>
+                  <p><strong>Total Delivered:</strong> ${totalDelivered} bottles</p>
+                  <p><strong>Total Collected:</strong> ${totalCollected} bottles</p>
+                  <p><strong>Closing Balance:</strong> ${runningBalance} bottles</p>
+                </div>
+                <div style="text-align: right;">
+                  <p class="highlight" style="font-size: 16px;"><strong>TOTAL AMOUNT DUE: Rs. ${totalAmount.toFixed(2)}</strong></p>
+                  <p style="margin-top: 10px; color: #666; font-size: 10px;">
+                    Generated on: ${new Date().toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top: 20px; text-align: center; color: #666; font-size: 10px;">
+              <p>🍾 Product-wise bottle tracking ensures accurate inventory management</p>
+              <p>AquaFine - Premium Water Supply | Daily Bottle Accountability System</p>
+            </div>
+          </body>
+        </html>
+      `)
+      
+      try {
+        printWindow.document.close()
+        setTimeout(() => {
+          printWindow.print()
+        }, 500) // Give the document time to load
+      } catch (printError) {
+        console.error('Error during print:', printError)
+        alert('Error printing document: ' + printError.message)
+      }
+
+    } catch (error) {
+      console.error('Error generating daily bottle tracking invoice:', error)
+      alert('Error generating invoice: ' + error.message)
+    }
+  }
+
   useEffect(() => {
     calculateLedger()
   }, [calculateLedger])
@@ -350,6 +579,74 @@ export default function CustomerLedgersPage() {
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md transition-colors duration-200 font-medium"
                   >
                     🖨️ Generate & Print Bill Invoice
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Generate Daily Bottle Tracking Invoice */}
+          <div className="bg-green-50 p-4 rounded-lg">
+            <h4 className="font-medium mb-3 text-green-700">🍾 Daily Bottle Tracking Invoice</h4>
+            <div className="space-y-3">
+              <div>
+                <SearchableCustomerSelect
+                  customers={customers}
+                  selectedCustomer={selectedCustomerObjForInvoice}
+                  onCustomerSelect={(customer) => {
+                    setSelectedCustomerObjForInvoice(customer)
+                  }}
+                  placeholder="Search and select customer for bottle tracking..."
+                  label="Select Customer"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Product
+                </label>
+                <select
+                  value={selectedProductForInvoice ? selectedProductForInvoice.id : ''}
+                  onChange={(e) => {
+                    const product = products.find(p => p.id === e.target.value)
+                    setSelectedProductForInvoice(product || null)
+                  }}
+                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Choose a product...</option>
+                  {products.map(product => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Month
+                </label>
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              {selectedCustomerObjForInvoice && selectedProductForInvoice && selectedMonth && (
+                <div className="bg-white p-3 rounded border border-green-200">
+                  <p className="text-sm text-gray-600 mb-2">
+                    🍾 Daily bottle tracking for <strong>{selectedCustomerObjForInvoice.name}</strong> - <strong>{selectedProductForInvoice.name}</strong> in <strong>{new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</strong>
+                  </p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Shows day-by-day breakdown of delivered bottles, collected bottles, daily balance, and amounts
+                  </p>
+                  <button
+                    onClick={printDailyBottleTrackingInvoice}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-md transition-colors duration-200 font-medium"
+                  >
+                    🖨️ Generate Daily Bottle Tracking Invoice
                   </button>
                 </div>
               )}

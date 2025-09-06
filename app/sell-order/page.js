@@ -12,6 +12,8 @@ export default function SellOrderPage() {
   const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [currentBottleCost, setCurrentBottleCost] = useState(0)
   const [selectedProduct, setSelectedProduct] = useState(null)
+  const [emptyBottlesCollected, setEmptyBottlesCollected] = useState(0)
+  const [customerBottleBalance, setCustomerBottleBalance] = useState(null)
 
   useEffect(() => {
     // Fetch sell orders
@@ -49,6 +51,27 @@ export default function SellOrderPage() {
     } catch (error) {
       console.error('Error fetching customer product price:', error)
       return 0
+    }
+  }
+
+  // Function to fetch customer bottle balance for selected product
+  const fetchCustomerBottleBalance = async (customerId, productId) => {
+    try {
+      if (!customerId || !productId) {
+        setCustomerBottleBalance(null)
+        return
+      }
+      
+      const response = await fetch(`/api/customer-bottle-balance?customerId=${customerId}&productId=${productId}`)
+      if (response.ok) {
+        const balance = await response.json()
+        setCustomerBottleBalance(balance)
+      } else {
+        setCustomerBottleBalance(null)
+      }
+    } catch (error) {
+      console.error('Error fetching customer bottle balance:', error)
+      setCustomerBottleBalance(null)
     }
   }
 
@@ -97,6 +120,7 @@ export default function SellOrderPage() {
         customerId: selectedCustomer.id,
         productId: selectedProduct.id,
         quantity: quantity,
+        emptyBottlesCollected: parseInt(emptyBottlesCollected || 0),
         // API will determine the correct price automatically
         billDate: data.billDate,
         salesmanId: selectedSalesman ? selectedSalesman.id : null,
@@ -120,15 +144,37 @@ export default function SellOrderPage() {
       const result = await response.json()
       console.log('Sell order created successfully:', result)
       
+      // Fetch the customer's updated bottle balance for the specific product
+      let bottleBalanceMessage = ''
+      try {
+        const bottleBalanceResponse = await fetch(`/api/customer-bottle-balance?customerId=${selectedCustomer.id}&productId=${selectedProduct.id}`)
+        if (bottleBalanceResponse.ok) {
+          const bottleBalance = await bottleBalanceResponse.json()
+          if (bottleBalance && bottleBalance.length > 0) {
+            const balance = bottleBalance[0]
+            bottleBalanceMessage = `\n\n📊 Updated ${balance.productName} Bottle Balance for ${balance.customerName}:\n` +
+                                 `• Opening Bottles: ${balance.openingBottles}\n` +
+                                 `• Total Delivered: ${balance.totalDelivered}\n` +
+                                 `• Empty Bottles Collected: ${balance.totalCollected}\n` +
+                                 `• Current Balance: ${balance.currentBalance} bottles`
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching bottle balance:', error)
+        bottleBalanceMessage = '\n\n⚠️ Could not fetch updated bottle balance'
+      }
+      
       // Refresh the sell orders list from the database
       const updatedSellOrders = await fetch('/api/sell-orders').then(r => r.json())
       setSellOrders(updatedSellOrders)
       
-      // Reset selected customer and show success message
+      // Reset selected customer and show success message with bottle balance
       setSelectedCustomer(null)
       setSelectedProduct(null)
       setCurrentBottleCost(0)
-      alert('Sell order added successfully!')
+      setEmptyBottlesCollected(0)
+      setCustomerBottleBalance(null)
+      alert(`✅ Sell order added successfully!${bottleBalanceMessage}`)
     } catch (error) {
       console.error('Error creating sell order:', error)
       alert('Failed to create sell order: ' + error.message)
@@ -157,6 +203,7 @@ export default function SellOrderPage() {
             onCustomerSelect={async (customer) => {
               setSelectedCustomer(customer)
               await updateBottleCost(customer, selectedProduct)
+              await fetchCustomerBottleBalance(customer?.id, selectedProduct?.id)
             }}
             placeholder="Search and select a customer..."
             label="Select Customer"
@@ -175,6 +222,7 @@ export default function SellOrderPage() {
               const product = products.find(p => p.id === e.target.value)
               setSelectedProduct(product)
               await updateBottleCost(selectedCustomer, product)
+              await fetchCustomerBottleBalance(selectedCustomer?.id, product?.id)
             }}
             className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
@@ -210,21 +258,121 @@ export default function SellOrderPage() {
           </div>
         )}
 
+        {/* Customer Bottle Balance Display */}
+        {selectedCustomer && selectedProduct && customerBottleBalance && customerBottleBalance.length > 0 && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <h4 className="font-medium text-green-900 mb-2">🍾 {customerBottleBalance[0].productName} Bottle Balance</h4>
+            <div className="text-sm text-green-800">
+              <p><strong>Customer:</strong> {customerBottleBalance[0].customerName}</p>
+              <p><strong>Product:</strong> {customerBottleBalance[0].productName}</p>
+              <p><strong>Opening Bottles:</strong> {customerBottleBalance[0].openingBottles}</p>
+              <p><strong>Total Delivered:</strong> {customerBottleBalance[0].totalDelivered}</p>
+              <p><strong>Empty Bottles Collected:</strong> {customerBottleBalance[0].totalCollected}</p>
+              <p><strong>Current Balance:</strong> 
+                <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
+                  customerBottleBalance[0].currentBalance > 0 
+                    ? 'bg-orange-100 text-orange-800' 
+                    : 'bg-green-100 text-green-800'
+                }`}>
+                  {customerBottleBalance[0].currentBalance} bottles
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Sell Order Form */}
-        <Form 
-          title="Order Details" 
-          fields={['quantity', 'billDate', 'salesmanAppointed']} 
-          fieldConfig={fieldConfig}
-          onSubmit={addSellOrder}
-          customers={customers}
-          products={products}
-          salesEmployees={salesEmployees}
-        />
+        <form onSubmit={(e) => {
+          e.preventDefault()
+          const formData = new FormData(e.target)
+          addSellOrder({
+            quantity: formData.get('quantity'),
+            billDate: formData.get('billDate'),
+            salesmanAppointed: formData.get('salesmanAppointed')
+          })
+        }} className="space-y-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Order Details</h3>
+          
+          {/* Quantity */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Quantity *
+            </label>
+            <input
+              type="number"
+              name="quantity"
+              min="1"
+              required
+              placeholder="Enter quantity"
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Empty Bottles Collected */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              🍾 Empty Bottles Collected
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={emptyBottlesCollected}
+              onChange={(e) => setEmptyBottlesCollected(e.target.value)}
+              placeholder="Number of empty bottles collected"
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              How many empty bottles were collected from this customer?
+            </p>
+          </div>
+
+          {/* Bill Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Bill Date *
+            </label>
+            <input
+              type="date"
+              name="billDate"
+              required
+              defaultValue={new Date().toISOString().split('T')[0]}
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Salesman */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Salesman Appointed *
+            </label>
+            <select
+              name="salesmanAppointed"
+              required
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Choose salesman...</option>
+              {salesEmployees.map(emp => (
+                <option key={emp.id} value={emp.name}>
+                  {emp.name} ({emp.employeeType})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={!selectedCustomer || !selectedProduct}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium"
+          >
+            {selectedCustomer && selectedProduct ? 'Create Sell Order' : 'Select Customer & Product First'}
+          </button>
+        </form>
       </div>
       
       <div className="bg-white rounded-xl shadow-lg">
         <Table
-          columns={['id', 'customerName', 'productName', 'quantity', 'bottleCost', 'totalAmount', 'billDate', 'salesmanAppointed']}
+          columns={['id', 'customerName', 'productName', 'quantity', 'emptyBottlesCollected', 'bottleCost', 'totalAmount', 'billDate', 'salesmanAppointed']}
           data={sellOrders}
         />
       </div>

@@ -111,10 +111,10 @@ export async function POST(request) {
     // Create sell order
     const orderResult = await query(
       `INSERT INTO sell_orders (customer_id, product_id, quantity, bottle_cost, total_amount, 
-                                salesman_employee_id, bill_date, remarks)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                                salesman_employee_id, bill_date, remarks, empty_bottles_collected)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id, bill_date as "billDate", total_amount as "totalAmount",
-                 product_id, quantity, bottle_cost, remarks, created_at as "createdAt"`,
+                 product_id, quantity, bottle_cost, remarks, empty_bottles_collected, created_at as "createdAt"`,
       [
         parseInt(data.customerId),
         item.productId,
@@ -123,7 +123,8 @@ export async function POST(request) {
         totalAmount,
         data.salesmanId ? parseInt(data.salesmanId) : null,
         data.billDate ? new Date(data.billDate) : new Date(),
-        data.notes || ''
+        data.notes || '',
+        parseInt(data.emptyBottlesCollected || 0)
       ]
     )
 
@@ -135,6 +136,7 @@ export async function POST(request) {
       bottleCost: item.unitPrice,
       quantity: item.quantity,
       totalAmount: totalAmount,
+      emptyBottlesCollected: parseInt(data.emptyBottlesCollected || 0),
       billDate: orderResult.rows[0].billDate,
       salesmanAppointed: data.salesmanAppointed || 'Unassigned',
       createdAt: orderResult.rows[0].createdAt

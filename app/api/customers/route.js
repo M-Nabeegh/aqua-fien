@@ -21,39 +21,22 @@ export async function POST(request) {
     
     console.log('Creating customer with data:', data)
     
-    // Format phone number to match the database constraint (+923xxxxxxxxx)
+    // Validate and format phone number for 11-digit Pakistani numbers
     let formattedPhone = data.phone || '';
     
-    // If phone is provided, validate and format it
+    // If phone is provided, validate it
     if (formattedPhone) {
-      // Remove any spaces, dashes, and non-digit characters except +
-      formattedPhone = formattedPhone.replace(/[^\d+]/g, '');
+      // Remove any spaces, dashes, and non-digit characters
+      formattedPhone = formattedPhone.replace(/[^\d]/g, '');
       
-      if (!formattedPhone.startsWith('+92')) {
-        // Remove any leading zeros
-        formattedPhone = formattedPhone.replace(/^0+/, '');
-        
-        // Validate minimum length for Pakistani phone numbers
-        if (formattedPhone.length >= 10 && formattedPhone.length <= 11) {
-          formattedPhone = '+92' + formattedPhone;
-        } else if (formattedPhone.length >= 7 && formattedPhone.length <= 9) {
-          // Assume it's a mobile number, add 300 prefix for common mobile format
-          formattedPhone = '+9230' + formattedPhone;
-        } else if (formattedPhone.length < 7) {
-          // Phone number too short, set to null to avoid constraint violation
-          console.warn('Phone number too short, setting to null:', formattedPhone);
-          formattedPhone = null;
-        } else {
-          // Phone number too long, set to null to avoid constraint violation
-          console.warn('Phone number too long, setting to null:', formattedPhone);
-          formattedPhone = null;
-        }
+      // Validate: must be exactly 11 digits starting with 0
+      if (formattedPhone.length === 11 && formattedPhone.startsWith('0')) {
+        // Convert to +92 format for database storage (remove leading 0, add +92)
+        formattedPhone = '+92' + formattedPhone.substring(1);
       } else {
-        // Already has +92 prefix, validate length
-        if (formattedPhone.length < 13 || formattedPhone.length > 14) {
-          console.warn('Invalid +92 phone number format, setting to null:', formattedPhone);
-          formattedPhone = null;
-        }
+        // Invalid phone number format
+        console.warn('Invalid phone number format, setting to null:', formattedPhone);
+        formattedPhone = null;
       }
     } else {
       // No phone provided, set to null
@@ -63,22 +46,24 @@ export async function POST(request) {
     const result = await query(
       `INSERT INTO customers (
         name, cnic, phone, address, joining_date, opening_bottles, 
-        is_active, created_at, updated_at, tenant_id
+        security_deposit, assigned_rider_id, is_active, created_at, updated_at, tenant_id
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, 
-        true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1
+        $7, $8, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1
       )
       RETURNING 
         id, name, cnic, phone, address, joining_date, 
-        opening_bottles, is_active, created_at, updated_at`,
+        opening_bottles, security_deposit, assigned_rider_id, is_active, created_at, updated_at`,
       [
         data.name, 
         data.cnic || null,
         formattedPhone, 
         data.address || '', 
         data.joiningDate || new Date().toISOString().split('T')[0], 
-        parseInt(data.openingBottles) || 0
+        parseInt(data.openingBottles) || 0,
+        parseFloat(data.securityDeposit) || 0,
+        data.assignedRiderId ? parseInt(data.assignedRiderId) : null
       ]
     )
     

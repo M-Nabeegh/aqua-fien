@@ -49,3 +49,4 @@ yarn.lock
 tmp/
 temp/
 .vercel
+.env*.local

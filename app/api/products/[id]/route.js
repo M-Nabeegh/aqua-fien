@@ -13,8 +13,8 @@ export async function PUT(request, { params }) {
     
     const result = await query(
       `UPDATE products 
-       SET name = $1, base_price = $2, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $3 AND is_active = true
+       SET name = $1, base_price = $2, is_active = true, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3
        RETURNING id, name, base_price as "basePrice", 
                  is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"`,
       [

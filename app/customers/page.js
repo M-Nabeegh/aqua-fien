@@ -7,6 +7,7 @@ import CustomerPricing from '../../components/CustomerPricing'
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([])
   const [products, setProducts] = useState([])
+  const [riders, setRiders] = useState([])
   const [showAdvancedPricing, setShowAdvancedPricing] = useState(false)
   const [customerPricing, setCustomerPricing] = useState({})
   const [activeTab, setActiveTab] = useState('add') // 'add' or 'view'
@@ -15,18 +16,72 @@ export default function CustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [openingBottles, setOpeningBottles] = useState(0)
+  const [selectedRider, setSelectedRider] = useState(null)
+  const [securityDeposit, setSecurityDeposit] = useState(0)
+  const [filterByRider, setFilterByRider] = useState('')
   const itemsPerPage = 10
 
   useEffect(() => {
-    // Fetch customers and products
+    // Fetch customers, products, and riders
     Promise.all([
       fetch('/api/customers').then(r => r.json()),
-      fetch('/api/products').then(r => r.json())
-    ]).then(([customersData, productsData]) => {
+      fetch('/api/products').then(r => r.json()),
+      fetch('/api/employees').then(r => r.json())
+    ]).then(([customersData, productsData, employeesData]) => {
       setCustomers(customersData)
       setProducts(productsData)
+      // Filter only riders from employees
+      const ridersData = employeesData.filter(emp => emp.employeeType === 'rider')
+      setRiders(ridersData)
     })
   }, [])
+
+  // Handle product selection change
+  const handleProductChange = (productId) => {
+    setSelectedProduct(productId)
+  }
+
+  // Handle opening bottles change
+  const handleOpeningBottlesChange = (bottles) => {
+    setOpeningBottles(bottles)
+  }
+
+  // Handle rider selection change
+  const handleRiderChange = (riderId) => {
+    setSelectedRider(riderId)
+  }
+
+  // Custom form change handler for field updates
+  const handleFormChange = (field, value) => {
+    if (field === 'productSelect') {
+      setSelectedProduct(value)
+    } else if (field === 'openingBottles') {
+      const bottles = parseInt(value) || 0
+      setOpeningBottles(bottles)
+    } else if (field === 'assignedRiderId') {
+      setSelectedRider(value)
+    } else if (field === 'securityDeposit') {
+      setSecurityDeposit(parseFloat(value) || 0)
+    }
+  }
+
+  // Update state when editing customer
+  useEffect(() => {
+    if (editingCustomer) {
+      setOpeningBottles(parseInt(editingCustomer.openingBottles) || 0)
+      setSecurityDeposit(parseFloat(editingCustomer.securityDeposit) || 0)
+      setSelectedRider(editingCustomer.assignedRiderId?.toString() || null)
+      setSelectedProduct(null) // Reset product selection when editing
+    } else {
+      // Reset when not editing
+      setOpeningBottles(0)
+      setSecurityDeposit(0)
+      setSelectedProduct(null)
+      setSelectedRider(null)
+    }
+  }, [editingCustomer])
 
   const addCustomer = async (data) => {
     try {
@@ -38,9 +93,9 @@ export default function CustomersPage() {
       
       // Validate phone number if provided
       if (data.phone && data.phone.trim() !== '') {
-        const phoneRegex = /^(\+92|0)?[0-9]{7,11}$/
+        const phoneRegex = /^[0-9]{11}$/
         if (!phoneRegex.test(data.phone.replace(/[\s\-]/g, ''))) {
-          alert('Please provide a valid Pakistani phone number (e.g., 03001234567 or +923001234567).')
+          alert('Please provide a valid 11-digit Pakistani phone number (e.g., 03001234567).')
           return
         }
       }
@@ -51,9 +106,12 @@ export default function CustomersPage() {
         return
       }
       
-      // Create customer data with custom pricing
+      // Create customer data with new fields
       const customerData = {
         ...data,
+        openingBottles: openingBottles || data.openingBottles || 0,
+        securityDeposit: securityDeposit || data.securityDeposit || 0,
+        assignedRiderId: selectedRider || data.assignedRiderId || null,
         customPricing: customerPricing,
         // Legacy support - if only one product and custom price is set
         productPrice: products.length === 1 && customerPricing[products[0]?.id] 
@@ -94,6 +152,10 @@ export default function CustomersPage() {
       setShowAdvancedPricing(false)
       setEditingCustomer(null)
       setIsEditMode(false)
+      setSelectedProduct(null)
+      setOpeningBottles(0)
+      setSelectedRider(null)
+      setSecurityDeposit(0)
       
       alert(`Customer ${isEditMode ? 'updated' : 'added'} successfully!`)
       
@@ -119,9 +181,9 @@ export default function CustomersPage() {
       
       // Validate phone number if provided
       if (data.phone && data.phone.trim() !== '') {
-        const phoneRegex = /^(\+92|0)?[0-9]{7,11}$/
+        const phoneRegex = /^[0-9]{11}$/
         if (!phoneRegex.test(data.phone.replace(/[\s\-]/g, ''))) {
-          alert('Please provide a valid Pakistani phone number (e.g., 03001234567 or +923001234567).')
+          alert('Please provide a valid 11-digit Pakistani phone number (e.g., 03001234567).')
           return
         }
       }
@@ -229,12 +291,18 @@ export default function CustomersPage() {
     setShowAdvancedPricing(false)
   }
 
-  // Filter customers based on search query
-  const filteredCustomers = customers.filter(customer =>
-    customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.address?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Filter customers based on search query and rider filter
+  const filteredCustomers = customers.filter(customer => {
+    const matchesSearch = customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customer.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customer.address?.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    const matchesRider = !filterByRider || 
+      customer.assignedRiderId?.toString() === filterByRider ||
+      (filterByRider === 'unassigned' && !customer.assignedRiderId)
+    
+    return matchesSearch && matchesRider
+  })
 
   // Pagination logic
   const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage)
@@ -255,15 +323,52 @@ export default function CustomersPage() {
     phone: { 
       type: 'tel', 
       label: 'Phone Number', 
-      placeholder: 'e.g., 03001234567 or +923001234567',
-      helperText: 'Optional: Pakistani phone number format'
+      placeholder: 'e.g., 03001234567',
+      maxLength: 11,
+      pattern: '[0-9]{11}',
+      helperText: 'Enter 11-digit Pakistani phone number (e.g., 03001234567)'
     },
     joiningDate: { type: 'date', label: 'Joining Date' },
+    productSelect: {
+      type: 'select',
+      label: 'Product for Opening Bottles',
+      placeholder: 'Select a product',
+      options: [
+        { value: '', label: 'Select Product' },
+        ...products.filter(p => p.isActive).map(product => ({
+          value: product.id.toString(),
+          label: `${product.name} (PKR ${product.basePrice})`
+        }))
+      ],
+      helperText: 'Select the product type for opening bottles'
+    },
     openingBottles: { 
       type: 'number', 
-      label: 'Opening Bottles', 
+      label: 'Opening Bottles Quantity', 
       placeholder: 'Enter number of bottles (default: 0)',
-      min: 0
+      min: 0,
+      helperText: 'Number of bottles this customer starts with'
+    },
+    assignedRiderId: {
+      type: 'select',
+      label: 'Assigned Rider',
+      placeholder: 'Select a rider',
+      options: [
+        { value: '', label: 'No Rider Assigned' },
+        ...riders.map(rider => ({
+          value: rider.id.toString(),
+          label: `${rider.name} (${rider.phone || 'No phone'})`
+        }))
+      ],
+      helperText: 'Assign a rider to this customer for delivery tracking'
+    },
+    securityDeposit: {
+      type: 'number',
+      label: 'Security Deposit (PKR)',
+      placeholder: 'Enter security deposit amount',
+      min: 0,
+      step: 0.01,
+      helperText: 'Refundable security deposit amount'
     },
     // Legacy field for backward compatibility
     ...(products.length === 1 && !showAdvancedPricing && {
@@ -278,7 +383,7 @@ export default function CustomersPage() {
     })
   }
 
-  const formFields = ['name', 'address', 'phone', 'joiningDate', 'openingBottles']
+  const formFields = ['name', 'address', 'phone', 'joiningDate', 'assignedRiderId', 'productSelect', 'openingBottles', 'securityDeposit']
   if (products.length === 1 && !showAdvancedPricing) {
     formFields.push('productPrice')
   }
@@ -365,6 +470,8 @@ export default function CustomersPage() {
                 fields={formFields} 
                 fieldConfig={fieldConfig}
                 onSubmit={addCustomer}
+                onChange={handleFormChange}
+                products={products}
                 initialData={editingCustomer}
                 key={editingCustomer?.id || 'new'} // Force re-render when editing different customer 
               />
@@ -435,16 +542,46 @@ export default function CustomersPage() {
                 </div>
               </div>
 
+              {/* Rider Filter */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Filter by Rider
+                </label>
+                <select
+                  value={filterByRider}
+                  onChange={(e) => setFilterByRider(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Customers</option>
+                  <option value="unassigned">Unassigned Customers</option>
+                  {riders.map(rider => (
+                    <option key={rider.id} value={rider.id.toString()}>
+                      {rider.name} ({customers.filter(c => c.assignedRiderId?.toString() === rider.id.toString()).length} customers)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Results Info */}
-              {searchQuery && (
+              {(searchQuery || filterByRider) && (
                 <div className="mb-4 text-sm text-gray-600">
                   {filteredCustomers.length === 0 ? (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <span className="text-yellow-800">No customers found matching &ldquo;{searchQuery}&rdquo;</span>
+                      <span className="text-yellow-800">
+                        No customers found
+                        {searchQuery && ` matching "${searchQuery}"`}
+                        {filterByRider && filterByRider !== 'unassigned' && ` for rider "${riders.find(r => r.id.toString() === filterByRider)?.name}"`}
+                        {filterByRider === 'unassigned' && ` without assigned rider`}
+                      </span>
                     </div>
                   ) : (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <span className="text-blue-800">Found {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''} matching &ldquo;{searchQuery}&rdquo;</span>
+                      <span className="text-blue-800">
+                        Found {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''}
+                        {searchQuery && ` matching "${searchQuery}"`}
+                        {filterByRider && filterByRider !== 'unassigned' && ` for rider "${riders.find(r => r.id.toString() === filterByRider)?.name}"`}
+                        {filterByRider === 'unassigned' && ` without assigned rider`}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -462,8 +599,10 @@ export default function CustomersPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Rider</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joining Date</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Opening Bottles</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Security Deposit</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                           </tr>
                         </thead>
@@ -483,10 +622,24 @@ export default function CustomersPage() {
                                 {customer.address || 'N/A'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {customer.assignedRiderName ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    🚴 {customer.assignedRiderName}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    👤 Unassigned
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {customer.joiningDate ? new Date(customer.joiningDate).toLocaleDateString() : 'N/A'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {customer.openingBottles || 0}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                PKR {parseFloat(customer.securityDeposit || 0).toFixed(2)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                 <button

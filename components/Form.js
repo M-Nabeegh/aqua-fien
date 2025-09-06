@@ -16,7 +16,7 @@ const fetchCustomerProductPrice = async (customerId, productId) => {
   }
 }
 
-export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfig = {}, employees = [], customers = [], products = [], salesEmployees = [], initialData = null }) {
+export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfig = {}, employees = [], customers = [], products = [], salesEmployees = [], initialData = null, onChange = null }) {
   const [form, setForm] = useState(() => {
     const initialForm = Object.fromEntries(fields.map(f => [f, '']))
     
@@ -105,14 +105,14 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
       }
     }
     
-    // Special handling for phone field - allow Pakistani phone number formats
+    // Special handling for phone field - allow only 11-digit Pakistani phone numbers
     if (field === 'phone' && value !== '') {
-      // Allow digits, +, spaces, dashes
-      if (!/^[\d+\s\-]*$/.test(value)) {
+      // Allow only digits
+      if (!/^\d*$/.test(value)) {
         return
       }
-      // Limit length to reasonable phone number length
-      if (value.length > 16) {
+      // Limit length to exactly 11 digits
+      if (value.length > 11) {
         return
       }
     }
@@ -206,6 +206,11 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
     }
     
     setForm({ ...form, [field]: value })
+    
+    // Call the onChange callback if provided
+    if (onChange) {
+      onChange(field, value)
+    }
   }
 
   const renderField = (field) => {
@@ -393,6 +398,8 @@ export default function Form({ fields = [], onSubmit, title = 'Form', fieldConfi
             placeholder={placeholder}
             value={form[field]}
             onChange={(e) => handleInputChange(field, e.target.value)}
+            maxLength={fieldConfig[field]?.maxLength || 11}
+            pattern={fieldConfig[field]?.pattern}
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             required={fieldConfig[field]?.required !== false}
           />

@@ -287,7 +287,7 @@ export default function CustomerBottleLedgerPage() {
           <p><strong>Opening Bottles:</strong> Initial bottles given to customer for a specific product</p>
           <p><strong>Total Delivered:</strong> All bottles delivered through sell orders for that product</p>
           <p><strong>Empty Collected:</strong> Empty bottles collected back from customer for that product</p>
-          <p><strong>Current Balance:</strong> Opening + Delivered - Collected = Customer's current bottle balance</p>
+          <p><strong>Current Balance:</strong> Opening + Delivered - Collected = Customer&apos;s current bottle balance</p>
           <p className="mt-3"><strong>🎯 Goal:</strong> Track bottle inventory separately for each product type (20L, 5L, 1L bottles, etc.)</p>
         </div>
       </div>

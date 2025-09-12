@@ -13,9 +13,11 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         <AppProvider>
-          <Navbar />
-          <main className="p-6 max-w-7xl mx-auto min-h-screen">{children}</main>
-          <Footer />
+          <div className="min-h-screen flex flex-col">
+            <Navbar />
+            <main className="flex-1 p-6 max-w-7xl mx-auto w-full">{children}</main>
+            <Footer />
+          </div>
         </AppProvider>
       </body>
     </html>

@@ -362,6 +362,13 @@ export default function CustomerLedgersPage() {
       const totalCollected = dailyData.reduce((sum, day) => sum + day.collected, 0)
       const totalAmount = dailyData.reduce((sum, day) => sum + parseFloat(day.amount), 0)
 
+      // Calculate opening bottles cost (included in running balance but shown separately)
+      const openingBottlesCost = openingBalanceForMonth > 0 ? openingBalanceForMonth * parseFloat(selectedProductForInvoice.basePrice || 0) : 0
+      
+      // For this invoice, we'll include opening bottles in the total
+      // This ensures customers are charged for all bottles in their possession
+      const grandTotalAmount = totalAmount + openingBottlesCost
+
       // Create printable invoice
       const printWindow = window.open('', '_blank')
       
@@ -457,7 +464,10 @@ export default function CustomerLedgersPage() {
                   <p><strong>Closing Balance:</strong> ${runningBalance} bottles</p>
                 </div>
                 <div style="text-align: right;">
-                  <p class="highlight" style="font-size: 16px;"><strong>TOTAL AMOUNT DUE: Rs. ${totalAmount.toFixed(2)}</strong></p>
+                  <p><strong>Opening Bottles Cost:</strong> Rs. ${openingBottlesCost.toFixed(2)}</p>
+                  <p><strong>Monthly Deliveries:</strong> Rs. ${totalAmount.toFixed(2)}</p>
+                  <hr style="margin: 10px 0; border: 1px solid #333;">
+                  <p class="highlight" style="font-size: 16px;"><strong>TOTAL AMOUNT DUE: Rs. ${grandTotalAmount.toFixed(2)}</strong></p>
                   <p style="margin-top: 10px; color: #666; font-size: 10px;">
                     Generated on: ${new Date().toLocaleDateString()}
                   </p>
@@ -467,6 +477,7 @@ export default function CustomerLedgersPage() {
 
             <div style="margin-top: 20px; text-align: center; color: #666; font-size: 10px;">
               <p>🍾 Product-wise bottle tracking ensures accurate inventory management</p>
+              <p><strong>Note:</strong> Invoice includes opening bottles cost + monthly deliveries</p>
               <p>AquaFine - Premium Water Supply | Daily Bottle Accountability System</p>
             </div>
           </body>

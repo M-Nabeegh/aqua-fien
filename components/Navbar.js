@@ -1,12 +1,33 @@
 'use client'
 import Link from 'next/link'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function Navbar() {
   const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false)
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false)
   const [isRiderDropdownOpen, setIsRiderDropdownOpen] = useState(false)
   const [isExpenditureDropdownOpen, setIsExpenditureDropdownOpen] = useState(false)
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST'
+      })
+      
+      // Clear localStorage
+      localStorage.removeItem('aquafine_auth')
+      localStorage.removeItem('aquafine_user')
+      
+      // Redirect to login
+      router.push('/login')
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Force redirect even on error
+      router.push('/login')
+    }
+  }
 
   return (
     <nav className="bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg">
@@ -204,6 +225,14 @@ export default function Navbar() {
           <Link href="/reports" className="hover:text-blue-200 transition-colors font-medium">
             📈 Reports
           </Link>
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="hover:text-blue-200 transition-colors font-medium bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded-md"
+          >
+            🚪 Logout
+          </button>
         </div>
       </div>
       
